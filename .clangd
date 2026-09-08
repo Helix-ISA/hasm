@@ -1,0 +1,13 @@
+CompileFlags:
+  Add:
+    - -Wall
+    - -Wextra
+    - -Werror
+    - -Wpedantic
+    - -I/home/alex/helix/helix-asm/include/
+
+Diagonstics:
+  UnusedIncludes: Strict
+
+Index:
+  Background: Build
