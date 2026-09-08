@@ -1,0 +1,15 @@
+#ifndef HX_CL_PARSER
+#define HX_CL_PARSER
+
+#include "types.h"
+#include <stdio.h>
+
+typedef struct {
+	b8 lexer_debug;
+
+	FILE *input_file;
+} hx_cli;
+
+b8 parse_args(s32 count, char **args, hx_cli *cli);
+
+#endif

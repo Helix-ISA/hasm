@@ -1,11 +1,10 @@
+#include "cli/cl_parser.h"
 #include "lexer/lexer.h"
 #include "lexer/token.h"
 #include "types.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static b8 lexer_debug = false;
 
 static void print_token(hx_token token)
 {
@@ -26,41 +25,31 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	for (s32 i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--lexer-debug") == 0) {
-			lexer_debug = true;
-			break;
-		}
-	}
+	hx_cli cli;
 
-	FILE *file = fopen(argv[1], "rb");
+	parse_args(argc, argv, &cli);
 
-	if (file == NULL) {
-		perror(argv[1]);
-		return 1;
-	}
-
-	if (fseek(file, 0, SEEK_END) != 0) {
+	if (fseek(cli.input_file, 0, SEEK_END) != 0) {
 		perror("fseek");
-		fclose(file);
+		fclose(cli.input_file);
 		return 1;
 	}
 
-	u64 file_size = ftell(file);
+	u64 file_size = ftell(cli.input_file);
 
 	if (file_size < 0) {
 		perror("ftell");
-		fclose(file);
+		fclose(cli.input_file);
 		return 1;
 	}
 
-	rewind(file);
+	rewind(cli.input_file);
 
 	char *source = malloc((u32)file_size + 1);
 
-	u32 bytes_read = fread(source, 1, file_size, file);
+	u32 bytes_read = fread(source, 1, file_size, cli.input_file);
 
-	fclose(file);
+	fclose(cli.input_file);
 
 	if (bytes_read != file_size) {
 		fprintf(stderr, "failed to read file\n");
@@ -74,7 +63,7 @@ int main(int argc, char **argv)
 
 	lexer_init(&lexer, source, bytes_read);
 
-	if (lexer_debug) {
+	if (cli.lexer_debug) {
 		for (;;) {
 			hx_token token = lexer_next(&lexer);
 
