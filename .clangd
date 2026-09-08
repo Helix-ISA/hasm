@@ -4,7 +4,7 @@ CompileFlags:
     - -Wextra
     - -Werror
     - -Wpedantic
-    - -I/home/alex/helix/helix-asm/include/
+    - -I/home/alex/Helix-ISA/hasm/include/
 
 Diagonstics:
   UnusedIncludes: Strict
