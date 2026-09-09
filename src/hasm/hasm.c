@@ -162,6 +162,7 @@ int hasm(int argc, char** argv)
 	/* DEBUG: Remove in release, prints nodes and exits early */
 	if (cli.parser_debug) {
 		parser_debug(&program);
+		return 0;
 	}
 
 	/* Start shutdown process */
