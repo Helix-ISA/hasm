@@ -31,6 +31,8 @@ dirs:
 	mkdir -p bin bin-int
 
 test:
-	./bin/$(TARGET)
+	@for file in test/*; do \
+		./bin/$(TARGET) "$$file" --parser-debug; \
+	done
 
 -include $(DEPS)
