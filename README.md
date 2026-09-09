@@ -1,5 +1,9 @@
 # Hasm assembler
 
+## Model
+
+![model](assets/model.png)
+
 ## Debug flags
 ```text
 --lexer-debug
