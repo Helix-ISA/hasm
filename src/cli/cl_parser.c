@@ -26,7 +26,9 @@ b8 cl_parse_free(hx_cli *cli)
 
 b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 {
-
+	/* TODO: Parse for '--', if the name is wrong it currently uses that arg
+	 * as the input file
+	 */
 	for (s32 i = 1; i < count; i++) {
 		if (strcmp(args[i], "--lexer-debug") == 0) {
 			cli->lexer_debug = true;
@@ -34,7 +36,7 @@ b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 			cli->parser_debug = true;
 		} else if (strcmp(args[i], "--symbol-debug") == 0) {
 			cli->symbol_debug = true;
-		} else if (strcmp(args[i], "-PIC") == 0) {
+		} else if (strcmp(args[i], "-pic") == 0) {
 			cli->pic = true;
 		} else if (strcmp(args[i], "-o") == 0) {
 			if (i + 1 == count) {

@@ -11,7 +11,7 @@ SRCS := $(shell find src -type f -name "*.c")
 OBJS := $(SRCS:src/%.c=bin-int/%.o)
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all build clean dirs test
+.PHONY: all build clean dirs lexer parser symbol symbol-pic
 
 all: build
 
@@ -30,9 +30,16 @@ clean:
 dirs:
 	mkdir -p bin bin-int
 
-test:
-	@for file in test/*; do \
-		./bin/$(TARGET) "$$file" --parser-debug; \
-	done
+lexer:
+	./bin/$(TARGET) test/000.hxs --lexer-debug | less
+
+parser:
+	./bin/$(TARGET) test/000.hxs --parser-debug | less
+
+symbol:
+	./bin/$(TARGET) test/000.hxs --symbol-debug | less
+
+symbol-pic:
+	./bin/$(TARGET) test/000.hxs --symbol-debug -pic | less
 
 -include $(DEPS)
