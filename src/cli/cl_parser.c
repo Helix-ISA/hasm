@@ -1,14 +1,29 @@
 #include "cli/cl_parser.h"
+
 #include "types.h"
 #include <stdio.h>
 #include <string.h>
 
-b8 parse_args(s32 count, char **args, hx_cli *cli)
+b8 cl_parse_init(hx_cli *cli)
 {
 	cli->lexer_debug = false;
 	cli->parser_debug = false;
 	cli->input_file = NULL;
 	cli->output_file = NULL;
+
+	return success;
+}
+
+b8 cl_parse_free(hx_cli *cli)
+{
+	fclose(cli->input_file);
+	fclose(cli->output_file);
+
+	return success;
+}
+
+b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
+{
 
 	for (s32 i = 1; i < count; i++) {
 		if (strcmp(args[i], "--lexer-debug") == 0) {
@@ -37,6 +52,11 @@ b8 parse_args(s32 count, char **args, hx_cli *cli)
 				return failure;
 			}
 		}
+	}
+
+	if (cli->input_file == NULL) {
+		fprintf(stderr, "expected input file\n");
+		return failure;
 	}
 
 	if (cli->output_file == NULL) {

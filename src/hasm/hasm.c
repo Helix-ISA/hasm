@@ -14,6 +14,7 @@
 #include "lexer/token.h"
 #include "io/file.h"
 #include "parser/parser.h"
+#include "types.h"
 
 static void print_token(hx_token token)
 {
@@ -113,19 +114,13 @@ static void parser_debug(const hx_program *program)
 int hasm(int argc, char** argv)
 {
 	hx_cli cli;
+	cl_parse_init(&cli);
 
-	if (parse_args(argc, argv, &cli) == 0)
-		return 1;
-
-	if (cli.input_file == NULL)
-		return 1;
+	if (!cl_parse_args(argc, argv, &cli))
+		return failure;
 
 	u32 source_length = 0;
-
 	char *source = read_file(cli.input_file, &source_length);
-
-	fclose(cli.input_file);
-
 	if (source == NULL)
 		return 1;
 
@@ -133,8 +128,9 @@ int hasm(int argc, char** argv)
 	hx_token *tokens = lexer_tokenize(source, source_length, &token_count);
 	if (tokens == NULL) {
 		fprintf(stderr, "lexer_tokenize failed\n");
+
 		free(source);
-		fclose(cli.output_file);
+		cl_parse_free(&cli);
 		return 1;
 	}
 
@@ -149,11 +145,12 @@ int hasm(int argc, char** argv)
 	parser_init(&parser, tokens, token_count);
 
 	hx_program program;
+	program_init(&program);
 
 	if (!parser_parse(&parser, &program)) {
 		free(tokens);
 		free(source);
-		fclose(cli.output_file);
+		cl_parse_free(&cli);
 		return 1;
 	}
 
@@ -161,7 +158,14 @@ int hasm(int argc, char** argv)
 		parser_debug(&program);
 	}
 
-	fclose(cli.output_file);
+
+	/* Start shutdown process */
+	if (!program_free(&program)) {
+		fprintf(stderr, "failed to free program\n");
+		return 1;
+	}
+	
+	cl_parse_free(&cli);
 	free(tokens);
 	free(source);
 	return 0;
