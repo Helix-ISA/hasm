@@ -6,8 +6,43 @@
 const char *mnemonic_name(hx_mnemonic mnemonic)
 {
 	switch (mnemonic) {
-		case HX_MN_ADD: return "add";
-		default: return "unknown";
+		case HX_MN_NOP:    return "nop";
+		case HX_MN_HLT:    return "hlt";
+		case HX_MN_SYSCALL:return "syscall";
+		case HX_MN_TRAP:   return "trap";
+		case HX_MN_IRET:   return "iret";
+		case HX_MN_EI:     return "ei";
+		case HX_MN_DI:     return "di";
+
+		case HX_MN_ADD:    return "add";
+		case HX_MN_SUB:    return "sub";
+		case HX_MN_AND:    return "and";
+		case HX_MN_OR:     return "or";
+		case HX_MN_XOR:    return "xor";
+		case HX_MN_NOT:    return "not";
+		case HX_MN_MOV:    return "mov";
+
+		case HX_MN_ST:     return "st";
+		case HX_MN_LD:     return "ld";
+		case HX_MN_LEA:    return "lea";
+
+		case HX_MN_SHL:    return "shl";
+		case HX_MN_SHR:    return "shr";
+		case HX_MN_SAR:    return "sar";
+
+		case HX_MN_JMP:    return "jmp";
+		case HX_MN_LJMP:   return "ljmp";
+
+		case HX_MN_BEQ:    return "beq";
+		case HX_MN_BNE:    return "bne";
+		case HX_MN_BLT:    return "blt";
+		case HX_MN_BGE:    return "bge";
+
+		case HX_MN_CALL:   return "call";
+		case HX_MN_RET:    return "ret";
+
+		default:
+			return "unknown";
 	}
 }
 

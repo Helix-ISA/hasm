@@ -1,4 +1,4 @@
-# HX parser test
+# hasm parser test
 
 _start:
     mov.b r0, 10
@@ -18,8 +18,9 @@ loop:
     beq done
     bne loop
 
-    #ld.q r4, [r5]
-    #st.d [r6 + 8], r4
+    ld.q r4, [r5]
+    st.d [r6 + 8], r4
+    st.q [r21 - 5], r31
 
     call function
     jmp loop

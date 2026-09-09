@@ -37,8 +37,24 @@ static void print_operand(const hx_operand *operand)
 			printf("immediate: %lld", (long long)operand->value.imm);
 			break;
 		case HX_OPERAND_MEMORY:
-			printf("memory: [r%u %+lld]", operand->value.memory.reg,
-					(long long)operand->value.memory.offset);
+			if (operand->value.memory.offset > 0) {
+				printf(
+						"memory: [r%u + %lld]",
+						operand->value.memory.reg,
+						(long long)operand->value.memory.offset
+				      );
+			} else if (operand->value.memory.offset < 0) {
+				printf(
+						"memory: [r%u - %lld]",
+						operand->value.memory.reg,
+						(long long)-operand->value.memory.offset
+				      );
+			} else {
+				printf(
+						"memory: [r%u]",
+						operand->value.memory.reg
+				      );
+			}
 			break;
 		case HX_OPERAND_LABEL:
 			printf("label: %.*s", (int)operand->value.label.length,

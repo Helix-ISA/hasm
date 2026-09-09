@@ -143,6 +143,73 @@ static b8 parse_integer(hx_token token, s64 *value)
 	return true;
 }
 
+static b8 parse_memory_operand(hx_parser *parser, hx_operand *operand)
+{
+	if (!parser_match(parser, TOKEN_LBRACKET))
+		return false;
+
+	hx_token *token = parser_current(parser);
+
+	if (token == NULL) {
+		parser_error(parser, "expected register after '['");
+		return false;
+	}
+
+	u32 reg;
+
+	if (!parse_register(*token, &reg)) {
+		parser_error(parser, "expected register in memory operand");
+		return false;
+	}
+
+	parser_advance(parser);
+
+	s64 offset = 0;
+
+	if (parser_match(parser, TOKEN_PLUS)) {
+		token = parser_current(parser);
+
+		if (token == NULL || token->type != TOKEN_NUMBER) {
+			parser_error(parser, "expected number after '+'");
+			return false;
+		}
+
+		if (!parse_integer(*token, &offset)) {
+			parser_error(parser, "invalid memory offset");
+			return false;
+		}
+
+		parser_advance(parser);
+	} else if (parser_match(parser, TOKEN_MINUS)) {
+		token = parser_current(parser);
+
+		if (token == NULL || token->type != TOKEN_NUMBER) {
+			parser_error(parser, "expected number after '-'");
+			return false;
+		}
+
+		if (!parse_integer(*token, &offset)) {
+			parser_error(parser, "invalid memory offset");
+			return false;
+		}
+
+		offset = -offset;
+
+		parser_advance(parser);
+	}
+
+	if (!parser_match(parser, TOKEN_RBRACKET)) {
+		parser_error(parser, "expected ']'");
+		return false;
+	}
+
+	operand->type = HX_OPERAND_MEMORY;
+	operand->value.memory.reg = reg;
+	operand->value.memory.offset = offset;
+
+	return true;
+}
+
 static b8 parse_operand(hx_parser *parser, hx_operand *operand)
 {
 	hx_token *token = parser_current(parser);
@@ -177,6 +244,10 @@ static b8 parse_operand(hx_parser *parser, hx_operand *operand)
 
 		parser_advance(parser);
 		return true;
+	}
+
+	if (token->type == TOKEN_LBRACKET) {
+		return parse_memory_operand(parser, operand);
 	}
 
 	return false;
