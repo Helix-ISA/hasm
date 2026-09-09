@@ -5,7 +5,6 @@
 typedef struct {
 	const char *name;
 	u32 name_length;
-	u32 instruction_index;
 } hx_label;
 
 #endif

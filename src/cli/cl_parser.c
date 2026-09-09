@@ -10,6 +10,8 @@ b8 cl_parse_init(hx_cli *cli)
 	cli->parser_debug = false;
 	cli->input_file = NULL;
 	cli->output_file = NULL;
+	cli->symbol_debug = false;
+	cli->pic = false;
 
 	return success;
 }
@@ -30,6 +32,10 @@ b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 			cli->lexer_debug = true;
 		} else if (strcmp(args[i], "--parser-debug") == 0) {
 			cli->parser_debug = true;
+		} else if (strcmp(args[i], "--symbol-debug") == 0) {
+			cli->symbol_debug = true;
+		} else if (strcmp(args[i], "-PIC") == 0) {
+			cli->pic = true;
 		} else if (strcmp(args[i], "-o") == 0) {
 			if (i + 1 == count) {
 				fprintf(stderr, "expected output after \"-o\"\n");

@@ -7,6 +7,9 @@
 typedef struct {
 	b8 lexer_debug;
 	b8 parser_debug;
+	b8 symbol_debug;
+
+	b8 pic;
 
 	FILE *input_file;
 	FILE *output_file;

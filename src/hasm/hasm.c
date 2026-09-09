@@ -5,6 +5,7 @@
 
 #include "cli/cl_parser.h"
 #include "encoder/encoder.h"
+#include "encoder/symbol.h"
 #include "isa/instruction.h"
 #include "isa/mnemonic.h"
 #include "isa/node.h"
@@ -181,6 +182,9 @@ int hasm(int argc, char** argv)
 		status = 1;
 		goto cleanup_program;
 	}
+
+	hx_binary binary;
+	encoder_encode(&program, &binary, &cli);
 
 	/* Free encoder */
 	if (!encoder_free(&program)) {
