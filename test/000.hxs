@@ -1,1 +1,33 @@
-mov.d r1, 123
+# HX parser test
+
+_start:
+    mov.b r0, 10
+    mov.w r1, 20
+    mov.d r2, 100
+    mov.q r31, 1000
+
+    add.d r0, r1
+    sub.d r2, 5
+
+    and.b r0, r1
+    or.w r1, r2
+    xor.d r2, r3
+    not.q r3
+
+loop:
+    beq done
+    bne loop
+
+    #ld.q r4, [r5]
+    #st.d [r6 + 8], r4
+
+    call function
+    jmp loop
+
+function:
+    mov.q r0, 12345
+    add.q r0, r1
+    ret
+
+done:
+    mov.d r0, 0

@@ -154,7 +154,7 @@ static hx_token lex_number(hx_lexer *lexer)
 	return token_create(lexer, TOKEN_NUMBER, start, line, column);
 }
 
-hx_token lexer_next(hx_lexer *lexer)
+static hx_token lexer_next(hx_lexer *lexer)
 {
 	skip_whitespace(lexer);
 

@@ -35,6 +35,7 @@ typedef struct {
 	u32 column;
 } hx_token;
 
+b8 token_equals(const hx_token *token, const char *name);
 const char *token_type_name(hx_token_type type);
 
 #endif

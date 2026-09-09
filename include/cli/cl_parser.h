@@ -6,6 +6,7 @@
 
 typedef struct {
 	b8 lexer_debug;
+	b8 parser_debug;
 
 	FILE *input_file;
 } hx_cli;

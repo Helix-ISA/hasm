@@ -1,5 +1,17 @@
 #include "lexer/token.h"
 
+#include <string.h>
+
+b8 token_equals(const hx_token *token, const char *name)
+{
+	u32 length = strlen(name);
+
+	if (token->text_length != length)
+		return failure;
+
+	return memcmp(token->text, name, token->text_length) == 0;
+}
+
 const char *token_type_name(hx_token_type type)
 {
 	switch (type) {
