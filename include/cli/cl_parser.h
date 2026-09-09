@@ -9,6 +9,7 @@ typedef struct {
 	b8 parser_debug;
 
 	FILE *input_file;
+	FILE *output_file;
 } hx_cli;
 
 b8 parse_args(s32 count, char **args, hx_cli *cli);

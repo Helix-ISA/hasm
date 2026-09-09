@@ -67,7 +67,7 @@ static void print_operand(const hx_operand *operand)
 	}
 }
 
-void parser_debug(const hx_program *program)
+static void parser_debug(const hx_program *program)
 {
 	for (u32 i = 0; i < program->node_count; i++) {
 		const hx_node *node = &program->nodes[i];
@@ -117,6 +117,9 @@ int hasm(int argc, char** argv)
 	if (parse_args(argc, argv, &cli) == 0)
 		return 1;
 
+	if (cli.input_file == NULL)
+		return 1;
+
 	u32 source_length = 0;
 
 	char *source = read_file(cli.input_file, &source_length);
@@ -131,6 +134,7 @@ int hasm(int argc, char** argv)
 	if (tokens == NULL) {
 		fprintf(stderr, "lexer_tokenize failed\n");
 		free(source);
+		fclose(cli.output_file);
 		return 1;
 	}
 
@@ -149,6 +153,7 @@ int hasm(int argc, char** argv)
 	if (!parser_parse(&parser, &program)) {
 		free(tokens);
 		free(source);
+		fclose(cli.output_file);
 		return 1;
 	}
 
@@ -156,6 +161,7 @@ int hasm(int argc, char** argv)
 		parser_debug(&program);
 	}
 
+	fclose(cli.output_file);
 	free(tokens);
 	free(source);
 	return 0;
