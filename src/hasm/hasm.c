@@ -20,22 +20,6 @@ static void print_token(hx_token token)
 	);
 }
 
-static void lexer_debug(const char *source, u32 source_length)
-{
-	hx_lexer lexer;
-
-	lexer_init(&lexer, source, source_length);
-
-	for (;;) {
-		hx_token token = lexer_next(&lexer);
-
-		print_token(token);
-
-		if (token.type == TOKEN_EOF)
-			break;
-	}
-}
-
 int hasm(int argc, char** argv)
 {
 	hx_cli cli;
@@ -52,10 +36,24 @@ int hasm(int argc, char** argv)
 	if (source == NULL)
 		return 1;
 
-	if (cli.lexer_debug)
-		lexer_debug(source, source_length);
+	u32 token_count;
+	hx_token *tokens = lexer_tokenize(source, source_length, &token_count);
+	if (tokens == NULL) {
+		fprintf(stderr, "lexer_tokenize failed\n");
+		free(source);
+		return 1;
+	}
 
+	if (cli.lexer_debug) {
+		for (u32 i = 0; i < token_count; i++) {
+			print_token(tokens[i]);
+		}
+		return 0;
+	}
+
+
+
+	free(tokens);
 	free(source);
-
 	return 0;
 }

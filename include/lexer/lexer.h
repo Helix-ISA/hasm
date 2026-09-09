@@ -15,4 +15,6 @@ typedef struct {
 b8 lexer_init(hx_lexer *lexer, const char *source, u32 source_length);
 hx_token lexer_next(hx_lexer *lexer);
 
+hx_token *lexer_tokenize(const char *source, u32 source_length, u32 *token_count);
+
 #endif

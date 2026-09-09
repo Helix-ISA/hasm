@@ -2,6 +2,8 @@
 #include "lexer/token.h"
 #include "types.h"
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static int lexer_at_end(const hx_lexer *lexer)
 {
@@ -223,4 +225,49 @@ hx_token lexer_next(hx_lexer *lexer)
 			return token_create(lexer, TOKEN_UNKNOWN, start, line, column);
 
 	}
+}
+
+hx_token *lexer_tokenize(const char *source, u32 source_length, u32 *token_count)
+{
+	hx_lexer lexer;
+
+	lexer_init(&lexer, source, source_length);
+
+	u32 capacity = 64;
+	u32 count = 0;
+
+	hx_token *tokens = malloc(sizeof(hx_token) * capacity);
+
+	if (tokens == NULL) {
+		fprintf(stderr, "out of memory\n");
+		return NULL;
+	}
+
+	for (;;) {
+		hx_token token = lexer_next(&lexer);
+
+		if (count >= capacity) {
+			u32 new_capacity = capacity * 2;
+			hx_token *new_tokens = realloc(tokens, sizeof(hx_token) * new_capacity);
+
+			if (new_tokens == NULL) {
+				fprintf(stderr, "out of memory\n");
+				free(tokens);
+				return NULL;
+			}
+
+			tokens = new_tokens;
+			capacity = new_capacity;
+		}
+
+		tokens[count++] = token;
+
+		if (token.type == TOKEN_EOF)
+			break;
+
+	}
+
+	*token_count = count;
+
+	return tokens;
 }
