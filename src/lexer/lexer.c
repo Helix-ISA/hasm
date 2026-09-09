@@ -1,5 +1,6 @@
 #include "lexer/lexer.h"
 #include "lexer/token.h"
+#include "types.h"
 #include <ctype.h>
 
 static int lexer_at_end(const hx_lexer *lexer)
@@ -62,7 +63,7 @@ static hx_token token_create(
 	return token;
 }
 
-void lexer_init(hx_lexer *lexer, const char *source, u32 source_length)
+b8 lexer_init(hx_lexer *lexer, const char *source, u32 source_length)
 {
 	lexer->source = source;
 	lexer->source_length = source_length;
@@ -71,6 +72,8 @@ void lexer_init(hx_lexer *lexer, const char *source, u32 source_length)
 
 	lexer->line = 1;
 	lexer->column = 1;
+
+	return success;
 }
 
 static void skip_whitespace(hx_lexer *lexer)
