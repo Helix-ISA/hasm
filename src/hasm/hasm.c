@@ -113,17 +113,19 @@ static void parser_debug(const hx_program *program)
 
 int hasm(int argc, char** argv)
 {
+	/* CLI Args */
 	hx_cli cli;
 	cl_parse_init(&cli);
-
 	if (!cl_parse_args(argc, argv, &cli))
 		return failure;
 
+	/* Source bytes */
 	u32 source_length = 0;
 	char *source = read_file(cli.input_file, &source_length);
 	if (source == NULL)
 		return 1;
 
+	/* Tokenize the source */
 	u32 token_count;
 	hx_token *tokens = lexer_tokenize(source, source_length, &token_count);
 	if (tokens == NULL) {
@@ -133,7 +135,8 @@ int hasm(int argc, char** argv)
 		cl_parse_free(&cli);
 		return 1;
 	}
-
+	
+	/* DEBUG: Remove in release, prints tokens and exits early */
 	if (cli.lexer_debug) {
 		for (u32 i = 0; i < token_count; i++) {
 			print_token(tokens[i]);
@@ -141,12 +144,14 @@ int hasm(int argc, char** argv)
 		return 0;
 	}
 
+	/* Prepare parser and nodes */
 	hx_parser parser;
 	parser_init(&parser, tokens, token_count);
 
 	hx_program program;
 	program_init(&program);
 
+	/* Parse the tokens */
 	if (!parser_parse(&parser, &program)) {
 		free(tokens);
 		free(source);
@@ -154,10 +159,10 @@ int hasm(int argc, char** argv)
 		return 1;
 	}
 
+	/* DEBUG: Remove in release, prints nodes and exits early */
 	if (cli.parser_debug) {
 		parser_debug(&program);
 	}
-
 
 	/* Start shutdown process */
 	if (!program_free(&program)) {
