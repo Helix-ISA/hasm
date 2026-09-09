@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "cli/cl_parser.h"
+#include "encoder/encoder.h"
 #include "isa/instruction.h"
 #include "isa/mnemonic.h"
 #include "isa/node.h"
@@ -113,35 +114,46 @@ static void parser_debug(const hx_program *program)
 
 int hasm(int argc, char** argv)
 {
+	int status = 0;
+
 	/* CLI Args */
 	hx_cli cli;
 	cl_parse_init(&cli);
-	if (!cl_parse_args(argc, argv, &cli))
-		return failure;
+
+	if (!cl_parse_args(argc, argv, &cli)) {
+		status = failure;
+		goto cleanup_cli;
+	}
 
 	/* Source bytes */
 	u32 source_length = 0;
 	char *source = read_file(cli.input_file, &source_length);
-	if (source == NULL)
-		return 1;
+
+	if (source == NULL) {
+		status = 1;
+		goto cleanup_cli;
+	}
 
 	/* Tokenize the source */
-	u32 token_count;
-	hx_token *tokens = lexer_tokenize(source, source_length, &token_count);
+	u32 token_count = 0;
+	hx_token *tokens = lexer_tokenize(
+			source,
+			source_length,
+			&token_count
+			);
+
 	if (tokens == NULL) {
 		fprintf(stderr, "lexer_tokenize failed\n");
-
-		free(source);
-		cl_parse_free(&cli);
-		return 1;
+		status = 1;
+		goto cleanup_source;
 	}
-	
-	/* DEBUG: Remove in release, prints tokens and exits early */
+
+	/* DEBUG: Remove in release */
 	if (cli.lexer_debug) {
-		for (u32 i = 0; i < token_count; i++) {
+		for (u32 i = 0; i < token_count; i++)
 			print_token(tokens[i]);
-		}
-		return 0;
+
+		goto cleanup_tokens;
 	}
 
 	/* Prepare parser and nodes */
@@ -153,26 +165,46 @@ int hasm(int argc, char** argv)
 
 	/* Parse the tokens */
 	if (!parser_parse(&parser, &program)) {
-		free(tokens);
-		free(source);
-		cl_parse_free(&cli);
-		return 1;
+		status = 1;
+		goto cleanup_program;
 	}
 
-	/* DEBUG: Remove in release, prints nodes and exits early */
+	/* DEBUG: Remove in release */
 	if (cli.parser_debug) {
 		parser_debug(&program);
-		return 0;
+		goto cleanup_program;
 	}
 
-	/* Start shutdown process */
-	if (!program_free(&program)) {
-		fprintf(stderr, "failed to free program\n");
-		return 1;
+	/* Encode the nodes into binary */
+	if (!encoder_init(&program)) {
+		fprintf(stderr, "failed to encode nodes\n");
+		status = 1;
+		goto cleanup_program;
 	}
-	
-	cl_parse_free(&cli);
+
+	/* Free encoder */
+	if (!encoder_free(&program)) {
+		fprintf(stderr, "failed to free encoder\n");
+		status = 1;
+		goto cleanup_program;
+	}
+
+cleanup_program:
+	if (!program_free(&program)) {
+		fprintf(stderr, "failed to free program");
+
+		if (status == 0)
+			status = 1;
+	}
+
+cleanup_tokens:
 	free(tokens);
+
+cleanup_source:
 	free(source);
-	return 0;
+
+cleanup_cli:
+	cl_parse_free(&cli);
+
+	return status;
 }
