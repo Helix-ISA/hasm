@@ -1,9 +1,10 @@
 #ifndef HX_OPERAND_H
 #define HX_OPERAND_H
 
+#include "isa/mnemonic.h"
 #include "types.h"
 
-#define MAX_OPERANDS 3
+#define MAX_OPERANDS 4
 
 typedef enum {
 	HX_OPERAND_REGISTER,
@@ -30,5 +31,7 @@ typedef struct {
 		} label;
 	} value;
 } hx_operand;
+
+b8 large_operand_instruction(hx_mnemonic mnenmonic);
 
 #endif

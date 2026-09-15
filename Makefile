@@ -31,15 +31,15 @@ dirs:
 	mkdir -p bin bin-int
 
 lexer:
-	./bin/$(TARGET) test/000.hxs --lexer-debug | less
+	./bin/$(TARGET) test/000.hxs --lexer-debug
 
 parser:
-	./bin/$(TARGET) test/000.hxs --parser-debug | less
+	./bin/$(TARGET) test/000.hxs --parser-debug
 
 symbol:
-	./bin/$(TARGET) test/000.hxs --symbol-debug | less
+	./bin/$(TARGET) test/000.hxs --symbol-debug
 
 symbol-pic:
-	./bin/$(TARGET) test/000.hxs --symbol-debug -pic | less
+	./bin/$(TARGET) test/000.hxs --symbol-debug -pic
 
 -include $(DEPS)

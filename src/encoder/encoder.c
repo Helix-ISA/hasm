@@ -3,7 +3,9 @@
 #include "encoder/symbol.h"
 #include "isa/instruction.h"
 #include "isa/label.h"
+#include "isa/mnemonic.h"
 #include "isa/node.h"
+#include "isa/operand.h"
 #include "isa/program.h"
 #include "types.h"
 #include <stdio.h>
@@ -34,7 +36,6 @@ b8 binary_free(hx_binary *binary)
 	return success;
 }
 
-/*
 static b8 binary_write_byte(hx_binary *binary, u8 value)
 {
 	if (binary->size >= binary->capacity) {
@@ -52,19 +53,175 @@ static b8 binary_write_byte(hx_binary *binary, u8 value)
 	binary->data[binary->size++] = value;
 
 	return success;
-}*/
+}
+
+static u8 reg_operands(const hx_instruction *instruction)
+{
+	u8 count = 0;
+	for (u8 i = 0; i < instruction->operand_count; i++) {
+		if (instruction->operands[i].type == HX_OPERAND_REGISTER)
+			count++;
+	}
+
+	return count;
+}
+
+static u32 encode_r_type(const hx_instruction *instruction) {
+	u32 encoded;
+	u8 opcode = mnemonic_opcode(instruction->mnemonic);
+	switch (reg_operands(instruction)) {
+		case 3: /* rd, rs1, rs2 */
+			encoded = (opcode) |
+			((instruction->operands[0].value.reg & 0x1F) << 7) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((instruction->operands[1].value.reg & 0x1F) << 15) |
+			((instruction->operands[2].value.reg & 0x1F) << 20) |
+			((mnemonic_funct7(instruction->mnemonic) & 0x7F) << 25);
+			break;
+		case 2: /* rd rs */
+			encoded = (opcode) |
+			((instruction->operands[0].value.reg & 0x1F) << 7) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((instruction->operands[0].value.reg & 0x1F) << 15) |
+			((instruction->operands[1].value.reg & 0x1F) << 20) |
+			((mnemonic_funct7(instruction->mnemonic) & 0x7F) << 25);
+			break;
+	}
+
+	return encoded;
+}
+
+static u32 encode_i_type(const hx_instruction *instruction)
+{
+	u32 encoded;
+	u8 opcode = mnemonic_opcode(instruction->mnemonic);
+	switch (reg_operands(instruction)) {
+		case 2:
+			encoded = (opcode) |
+			((instruction->operands[0].value.reg & 0x1F) << 7) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((instruction->operands[1].value.reg & 0x1F) << 15) |
+			((instruction->operands[2].value.imm & 0xFFF) << 20);
+			break;
+		case 1:
+			encoded = (opcode) |
+			((instruction->operands[0].value.reg & 0x1F) << 7) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((instruction->operands[0].value.reg & 0x1F) << 15) |
+			((instruction->operands[1].value.imm & 0xFFF) << 20);
+			break;
+	}
+
+	return encoded;
+}
+
+static u32 encode_s_type(const hx_instruction *instruction)
+{
+
+}
+
+static u32 encode_b_type(const hx_instruction *instruction)
+{
+
+}
+
+static u32 encode_j_type(const hx_instruction *instruction)
+{
+
+}
+
+static u32 encode_m_type(const hx_instruction *instruction)
+{
+
+}
 
 static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table *symbols, hx_binary *binary)
 {
-	(void)instruction;
 	(void)symbols;
 	(void)binary;
+
+	u32 inst_bytes = 0;
 
 	/*
 	 * TODO: find the correct candidate instruction to write, then format
 	 * in u16 or u32, then send to binary_write_byte to write to hx_binary
 	 * then sent to writer what writes binary to file
 	 */
+	switch (instruction->mnemonic) {
+
+		/* R-Type format instructions */
+		case HX_MN_SUB:		
+		case HX_MN_MUL:		
+		case HX_MN_SLT:		
+		case HX_MN_DIV:		
+		case HX_MN_AND:		
+		case HX_MN_REM:		
+		case HX_MN_SLTU:	
+		case HX_MN_SLL:		
+		case HX_MN_SLR:		
+		case HX_MN_SAR:		
+		case HX_MN_XOR:		
+		case HX_MN_OR:		
+		case HX_MN_ADD:
+			inst_bytes = encode_r_type(instruction);
+			break;
+
+		/* I-Type format instructions */
+		case HX_MN_ADDI:
+		case HX_MN_ANDI:	
+		case HX_MN_ORI:		
+		case HX_MN_XORI:	
+		case HX_MN_SLLI:	
+		case HX_MN_SLRI:	
+		case HX_MN_SARI:	
+		case HX_MN_SLTI:	
+		case HX_MN_SLTUI:
+			inst_bytes = encode_i_type(instruction);
+			break;
+
+		case HX_MN_LB:		
+		case HX_MN_LQ:		
+		case HX_MN_LH:		
+		case HX_MN_LW:		
+		case HX_MN_LBU:		
+		case HX_MN_LQU:		
+		case HX_MN_LHU:		
+
+		case HX_MN_SB:		
+		case HX_MN_SQ:		
+		case HX_MN_SH:		
+		case HX_MN_SW:		
+
+		case HX_MN_BEQ:		
+		case HX_MN_BNE:		
+		case HX_MN_BLT:		
+		case HX_MN_BGE:		
+		case HX_MN_BLTU:	
+		case HX_MN_BGEU:	
+
+		case HX_MN_JAL:		
+		case HX_MN_JALR:	
+
+		case HX_MN_SCALL:	
+		case HX_MN_STRAP:	
+		case HX_MN_SRET:	
+		case HX_MN_WFI:		
+
+		case HX_MN_MOVZ:	
+		case HX_MN_MOVP:	
+		case HX_MN_MOVN:	
+
+		case HX_MN_CS:		
+		case HX_MN_CSINC:	
+		case HX_MN_CSNEG:	
+*/
+default:break;
+	}
+
+	binary_write_byte(binary, (u8)inst_bytes);
+	binary_write_byte(binary, (u8)(inst_bytes >> 8));
+	binary_write_byte(binary, (u8)(inst_bytes >> 16));
+	binary_write_byte(binary, (u8)(inst_bytes >> 24));
 
 	return success;
 }

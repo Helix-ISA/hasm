@@ -186,6 +186,10 @@ int hasm(int argc, char** argv)
 	hx_binary binary;
 	encoder_encode(&program, &binary, &cli);
 
+	for (u32 i = 0; i < binary.size; i++) {
+		fwrite(&binary.data[i], sizeof(u8), 1, cli.output_file);
+	}
+
 	/* Free encoder */
 	if (!encoder_free(&program)) {
 		fprintf(stderr, "failed to free encoder\n");

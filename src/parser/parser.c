@@ -334,7 +334,7 @@ static b8 parse_instruction(hx_parser *parser, hx_program *program)
 
 	if (!parser_check(parser, TOKEN_NEWLINE) && !parser_check(parser, TOKEN_EOF)) {
 		for (;;) {
-			if (instruction.operand_count >= 3) {
+			if (instruction.operand_count >= 3 && !large_operand_instruction(instruction.mnemonic)) {
 				parser_error(parser, "too many operands");
 				return false;
 			}

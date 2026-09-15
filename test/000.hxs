@@ -1,34 +1,67 @@
 # hasm parser test
 
-_start:
-    mov.b r0, 10
-    mov.w r1, 20
-    mov.d r2, 100
-    mov.q r31, 1000
-
-    add.d r0, r1
-    sub.d r2, 5
-
-    and.b r0, r1
-    or.w r1, r2
-    xor.d r2, r3
-    not.q r3
-
-loop:
-    beq done
-    bne loop
-
-    ld.q r4, [r5]
-    st.d [r6 + 8], r4
-    st.q [r21 - 5], r31
-
-    call function
-    jmp loop
-
 function:
-    mov.q r0, 12345
-    add.q r0, r1
-    ret
+	addi r9, r5, 21
+	jalr r0, r1, 0
 
-done:
-    mov.d r0, 0
+_start:
+	add r3, r5, r7
+	addi r8, r6, 1
+	sub r9, r9, r2
+	mul r2, r2, r2
+	div r2, r2, r2
+	rem r2, r2, r2
+	
+	and r2, r2, r2
+	andi r2, r2, 1
+	or r2, r2, r2
+	ori r2, r2, 1
+	xor r2, r2, r2
+	xori r2, r2, 1
+	sll r2, r4
+	slli r2, 4
+	slr r2, r4
+	slri r2, 4
+	sar r2, r4
+	sari r2, 4
+	slt r1, r2, r3
+	slti r1, r2, 3
+	sltu r1, r2, r4
+	sltui r1, r2, 4
+
+	lb r2, [r3 + 10]
+	lq r2, [r3 + 10]
+	lh r2, [r3 + 10]
+	lw r2, [r3 + 10]
+	lbu r2, [r3 + 10]
+	lqu r2, [r3 + 10]
+	lhu r2, [r3 + 10]
+
+	sb [r3 + 123], r5
+	sq [r3 + 123], r5
+	sh [r3 + 123], r5
+	sw [r3 + 123], r5
+
+	jal r1, function
+
+branch:
+	beq r0, r1, branch
+	bne r0, r1, branch
+	blt r0, r1, branch
+	bge r0, r1, branch
+	bltu r0, r1, branch
+	bgeu r0, r1, branch
+
+new:
+	lw r1, 0
+	scall
+	lw r1, 5
+	strap
+	sret
+	wfi
+
+	movz r1, 10000, 32
+	movp r1, 10000, 32
+	movn r1, 10000, 32
+
+	cs r10, r11, r12, eq
