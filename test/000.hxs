@@ -64,4 +64,6 @@ new:
 	movp r1, 10000, 32
 	movn r1, 10000, 32
 
-	cs r10, r11, r12, eq
+	csl r10, r11, r12, eq
+	csinc r10, r11, r12, eq
+	csneg r10, r11, r12, eq

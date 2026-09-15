@@ -65,7 +65,7 @@ typedef enum {
 	HX_MN_MOVP,
 	HX_MN_MOVN,
 
-	HX_MN_CS,
+	HX_MN_CSL,
 	HX_MN_CSINC,
 	HX_MN_CSNEG,
 

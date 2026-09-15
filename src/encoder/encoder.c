@@ -359,7 +359,7 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 			inst_bytes = encode_m_type(instruction);
 			break;
 
-		case HX_MN_CS:		
+		case HX_MN_CSL:		
 		case HX_MN_CSINC:	
 		case HX_MN_CSNEG:
 			inst_bytes = encode_r_type(instruction);

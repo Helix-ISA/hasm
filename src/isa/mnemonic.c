@@ -63,7 +63,7 @@ const char *mnemonic_name(hx_mnemonic mnemonic)
 		case HX_MN_MOVP:	return "movp";
 		case HX_MN_MOVN:	return "movn";
 
-		case HX_MN_CS:		return "cs";
+		case HX_MN_CSL:		return "csl";
 		case HX_MN_CSINC:	return "csinc";
 		case HX_MN_CSNEG:	return "csneg";
 
@@ -131,7 +131,7 @@ u8 mnemonic_opcode(hx_mnemonic mnemonic)
 		case HX_MN_MOVP:	return 0x43;
 		case HX_MN_MOVN:	return 0x43;
 
-		case HX_MN_CS:		return 0x77;
+		case HX_MN_CSL:		return 0x77;
 		case HX_MN_CSINC:	return 0x77;
 		case HX_MN_CSNEG:	return 0x77;
 
@@ -292,11 +292,14 @@ b8 mnemonic_from_token(hx_token token, hx_mnemonic *mnemonic)
 	} else if (token_equals(&token, "movn")) {
 		*mnemonic = HX_MN_MOVN;
 		return success;
-	} else if (token_equals(&token, "cs")) {
-		*mnemonic = HX_MN_CS;
+	} else if (token_equals(&token, "csl")) {
+		*mnemonic = HX_MN_CSL;
 		return success;
 	} else if (token_equals(&token, "csinc")) {
 		*mnemonic = HX_MN_CSINC;
+		return success;
+	} else if (token_equals(&token, "csneg")) {
+		*mnemonic = HX_MN_CSNEG;
 		return success;
 	}
 	return failure;
@@ -355,7 +358,7 @@ u8 mnemonic_funct3(hx_mnemonic mnemonic)
 		case HX_MN_SRET:	return 0x2;
 		case HX_MN_WFI:		return 0x3;
 
-		case HX_MN_CS:		return 0x0;
+		case HX_MN_CSL:		return 0x0;
 		case HX_MN_CSINC:	return 0x1;
 		case HX_MN_CSNEG:	return 0x2;
 
@@ -476,7 +479,7 @@ hx_mnemonic mnemonic_from_funct3(u8 opcode, u8 funct3)
 		/* Conditional select */
 		case 0x77:
 			switch (funct3) {
-				case 0x0: return HX_MN_CS;
+				case 0x0: return HX_MN_CSL;
 				case 0x1: return HX_MN_CSINC;
 				case 0x2: return HX_MN_CSNEG;
 				default:  return HX_MN_UNKNOWN;
@@ -632,7 +635,7 @@ hx_mnemonic mnemonic_from_encoding(u8 opcode, u8 funct3, u8 funct7)
 		/* Conditional select */
 		case 0x77:
 			switch (funct3) {
-				case 0x0: return HX_MN_CS;
+				case 0x0: return HX_MN_CSL;
 				case 0x1: return HX_MN_CSINC;
 				case 0x2: return HX_MN_CSNEG;
 				default:  return HX_MN_UNKNOWN;
