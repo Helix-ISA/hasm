@@ -7,13 +7,13 @@ function:
 _start:
 	add r3, r5, r7
 	addi r8, r6, 1
-	sub r9, r9, r2
+	sub r9, r9, r12
 	mul r2, r2, r2
 	div r2, r2, r2
 	rem r2, r2, r2
 	
-	and r2, r2, r2
-	andi r2, r2, 1
+	and r2, r2, r19
+	andi r2, r2, 123
 	or r2, r2, r2
 	ori r2, r2, 1
 	xor r2, r2, r2
@@ -65,3 +65,4 @@ new:
 	movn r1, 10000, 32
 
 	cs r10, r11, r12, eq
+	

@@ -67,7 +67,7 @@ static u8 reg_operands(const hx_instruction *instruction)
 }
 
 static u32 encode_r_type(const hx_instruction *instruction) {
-	u32 encoded;
+	u32 encoded = 0;
 	u8 opcode = mnemonic_opcode(instruction->mnemonic);
 	switch (reg_operands(instruction)) {
 		case 3: /* rd, rs1, rs2 */
@@ -93,7 +93,7 @@ static u32 encode_r_type(const hx_instruction *instruction) {
 
 static u32 encode_i_type(const hx_instruction *instruction)
 {
-	u32 encoded;
+	u32 encoded = 0;
 	u8 opcode = mnemonic_opcode(instruction->mnemonic);
 	switch (reg_operands(instruction)) {
 		case 2:
@@ -104,11 +104,23 @@ static u32 encode_i_type(const hx_instruction *instruction)
 			((instruction->operands[2].value.imm & 0xFFF) << 20);
 			break;
 		case 1:
+			if (instruction->mnemonic == HX_MN_JALR) {
+				encoded = (opcode) |
+				((instruction->operands[0].value.reg & 0x1F) << 7) |
+				((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+				((instruction->operands[1].value.reg & 0x1F) << 15) |
+				((instruction->operands[2].value.imm & 0xFFF) << 20);
+			} else {
+				encoded = (opcode) |
+				((instruction->operands[0].value.reg & 0x1F) << 7) |
+				((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+				((instruction->operands[0].value.reg & 0x1F) << 15) |
+				((instruction->operands[1].value.imm & 0xFFF) << 20);
+			}
+			break;
+		case 0: /* TODO: Many immediate for some system instructions */
 			encoded = (opcode) |
-			((instruction->operands[0].value.reg & 0x1F) << 7) |
-			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
-			((instruction->operands[0].value.reg & 0x1F) << 15) |
-			((instruction->operands[1].value.imm & 0xFFF) << 20);
+			((mnemonic_funct3(instruction->mnemonic) &0x03) << 12);
 			break;
 	}
 
@@ -117,22 +129,77 @@ static u32 encode_i_type(const hx_instruction *instruction)
 
 static u32 encode_s_type(const hx_instruction *instruction)
 {
+	u32 encoded;
+	u8 opcode = mnemonic_opcode(instruction->mnemonic);
 
+	if (instruction->operands[1].type == HX_OPERAND_MEMORY) {
+		encoded = (opcode) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 7) |
+			((instruction->operands[0].value.reg & 0x1F) << 10) |
+			((instruction->operands[1].value.memory.reg & 0x1F) << 15) |
+			((instruction->operands[1].value.memory.offset & 0xFFF) << 20);
+
+	} else if (instruction->operands[1].type == HX_OPERAND_REGISTER) {
+		encoded = (opcode) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 7) |
+			((instruction->operands[0].value.memory.reg & 0x1F) << 10) |
+			((instruction->operands[1].value.memory.reg & 0x1F) << 15) |
+			((instruction->operands[0].value.memory.offset & 0xFFF) << 20);
+	} else {
+		__builtin_unreachable();
+	}
+	return encoded;
 }
 
-static u32 encode_b_type(const hx_instruction *instruction)
+static u32 encode_b_type(const hx_instruction *instruction, hx_symbol_table *table)
 {
+	u8 opcode = mnemonic_opcode(instruction->mnemonic);
+	u32 address;
 
+	hx_label label = {
+		.name = instruction->operands[2].value.label.text,
+		.name_length = instruction->operands[2].value.label.length
+	};
+
+	if (!symbol_find(table, label, &address)) {
+		fprintf(stderr, "instruction targets a nonexisting label\n");
+	}
+
+	u32 encoded = (opcode) |
+		((mnemonic_funct3(instruction->mnemonic) & 0x03) << 7) |
+		((instruction->operands[0].value.reg & 0x1F) << 10) |
+		((instruction->operands[1].value.reg & 0x1F) << 15) |
+		((address & 0x7FF) << 20);
+	
+	return encoded;
 }
 
-static u32 encode_j_type(const hx_instruction *instruction)
+static u32 encode_j_type(const hx_instruction *instruction, hx_symbol_table *table)
 {
+	u8 opcode = mnemonic_opcode(instruction->mnemonic);
+	u32 address;
 
+	hx_label label = {
+		.name = instruction->operands[1].value.label.text,
+		.name_length = instruction->operands[1].value.label.length
+	};
+
+	if (!symbol_find(table, label, &address)) {
+		fprintf(stderr, "instruction targets a nonexisting label\n");
+	}
+
+	u32 encoded = (opcode) |
+		((instruction->operands[0].value.reg & 0x1F) << 7) |
+		((address & 0x7FFFF) << 12);
+	
+	return encoded;
 }
 
 static u32 encode_m_type(const hx_instruction *instruction)
 {
-
+	u8 opcode = mnemonic_opcode(instruction->mnemonic);
+	(void)opcode;
+	return 0x0;
 }
 
 static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table *symbols, hx_binary *binary)
@@ -176,6 +243,11 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 		case HX_MN_SARI:	
 		case HX_MN_SLTI:	
 		case HX_MN_SLTUI:
+		case HX_MN_SCALL:	
+		case HX_MN_STRAP:	
+		case HX_MN_SRET:	
+		case HX_MN_WFI:		
+		case HX_MN_JALR:	
 			inst_bytes = encode_i_type(instruction);
 			break;
 
@@ -186,36 +258,39 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 		case HX_MN_LBU:		
 		case HX_MN_LQU:		
 		case HX_MN_LHU:		
-
 		case HX_MN_SB:		
 		case HX_MN_SQ:		
 		case HX_MN_SH:		
-		case HX_MN_SW:		
+		case HX_MN_SW:
+			inst_bytes = encode_s_type(instruction);
+			break;
 
 		case HX_MN_BEQ:		
 		case HX_MN_BNE:		
 		case HX_MN_BLT:		
 		case HX_MN_BGE:		
 		case HX_MN_BLTU:	
-		case HX_MN_BGEU:	
+		case HX_MN_BGEU:
+			inst_bytes = encode_b_type(instruction, symbols);
+			break;
 
-		case HX_MN_JAL:		
-		case HX_MN_JALR:	
+		case HX_MN_JAL:
+			inst_bytes = encode_j_type(instruction, symbols);
+			break;
 
-		case HX_MN_SCALL:	
-		case HX_MN_STRAP:	
-		case HX_MN_SRET:	
-		case HX_MN_WFI:		
 
 		case HX_MN_MOVZ:	
 		case HX_MN_MOVP:	
-		case HX_MN_MOVN:	
+		case HX_MN_MOVN:
+			inst_bytes = encode_m_type(instruction);
+			break;
 
 		case HX_MN_CS:		
 		case HX_MN_CSINC:	
 		case HX_MN_CSNEG:	
-*/
-default:break;
+		
+		default:
+			break;
 	}
 
 	binary_write_byte(binary, (u8)inst_bytes);
