@@ -10,8 +10,11 @@ typedef struct {
 	b8 symbol_debug;
 
 	b8 pic;
+	b8 disassemble;
 
 	FILE *input_file;
+
+	char *out_file_name;
 	FILE *output_file;
 } hx_cli;
 

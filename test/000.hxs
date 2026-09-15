@@ -53,9 +53,9 @@ branch:
 	bgeu r0, r1, branch
 
 new:
-	lw r1, 0
+	movz r1, 1, 0
 	scall
-	lw r1, 5
+	movz r1, 1, 0
 	strap
 	sret
 	wfi
@@ -65,4 +65,3 @@ new:
 	movn r1, 10000, 32
 
 	cs r10, r11, r12, eq
-	

@@ -5,7 +5,7 @@
 
 #include "cli/cl_parser.h"
 #include "encoder/encoder.h"
-#include "encoder/symbol.h"
+#include "decoder/decoder.h"
 #include "isa/instruction.h"
 #include "isa/mnemonic.h"
 #include "isa/node.h"
@@ -126,6 +126,15 @@ int hasm(int argc, char** argv)
 		goto cleanup_cli;
 	}
 
+	if (cli.disassemble) {
+		if (!decoder_decode(&cli)) {
+			status = 1;
+			goto cleanup_cli;
+		}
+
+		return 0;
+	}
+
 	/* Source bytes */
 	u32 source_length = 0;
 	char *source = read_file(cli.input_file, &source_length);
@@ -176,11 +185,19 @@ int hasm(int argc, char** argv)
 		goto cleanup_program;
 	}
 
+	/* Parse complete open write file */
+	cli.output_file = fopen(cli.out_file_name, "wb");
+	if (cli.output_file == NULL) {
+		perror("fopen");
+		status = 1;
+		goto cleanup_program;
+	}
+
 	/* Encode the nodes into binary */
 	if (!encoder_init(&program)) {
 		fprintf(stderr, "failed to encode nodes\n");
 		status = 1;
-		goto cleanup_program;
+		goto cleanup_encoder;
 	}
 
 	hx_binary binary;
@@ -194,8 +211,11 @@ int hasm(int argc, char** argv)
 	if (!encoder_free(&program)) {
 		fprintf(stderr, "failed to free encoder\n");
 		status = 1;
-		goto cleanup_program;
+		goto cleanup_encoder;
 	}
+
+cleanup_encoder:
+	fclose(cli.output_file);
 
 cleanup_program:
 	if (!program_free(&program)) {

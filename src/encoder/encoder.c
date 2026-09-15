@@ -10,6 +10,7 @@
 #include "types.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 b8 encoder_init(hx_program *program)
 {
@@ -69,11 +70,47 @@ static u8 reg_operands(const hx_instruction *instruction)
 static u32 encode_r_type(const hx_instruction *instruction) {
 	u32 encoded = 0;
 	u8 opcode = mnemonic_opcode(instruction->mnemonic);
+
+	if (instruction->operands[3].type == HX_OPERAND_LABEL) {
+		hx_label condition = {
+			.name = instruction->operands[3].value.label.text,
+			.name_length = instruction->operands[3].value.label.length
+		};
+
+		char buf[5];
+		snprintf(buf, condition.name_length, "%s", condition.name);
+
+		b8 funct7 = 0;
+
+		if (strcmp(buf, "eq") == 0) {
+			funct7 = 0x00;
+		} else if (strcmp(buf, "ne") == 0) {
+			funct7 = 0x01;
+		} else if (strcmp(buf, "lt") == 0) {
+			funct7 = 0x02;
+		} else if (strcmp(buf, "ge") == 0) {
+			funct7 = 0x03;
+		} else if (strcmp(buf, "ltu") == 0) {
+			funct7 = 0x04;
+		} else if (strcmp(buf, "geu") == 0) {
+			funct7 = 0x05;
+		}
+
+		encoded = (opcode) |
+		((instruction->operands[0].value.reg & 0x1F) << 7) |
+		((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
+		((instruction->operands[1].value.reg & 0x1F) << 15) |
+		((instruction->operands[2].value.reg & 0x1F) << 20) |
+		((funct7 & 0x7F) << 25);
+
+		return encoded;
+	}
+
 	switch (reg_operands(instruction)) {
 		case 3: /* rd, rs1, rs2 */
 			encoded = (opcode) |
 			((instruction->operands[0].value.reg & 0x1F) << 7) |
-			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
 			((instruction->operands[1].value.reg & 0x1F) << 15) |
 			((instruction->operands[2].value.reg & 0x1F) << 20) |
 			((mnemonic_funct7(instruction->mnemonic) & 0x7F) << 25);
@@ -81,7 +118,7 @@ static u32 encode_r_type(const hx_instruction *instruction) {
 		case 2: /* rd rs */
 			encoded = (opcode) |
 			((instruction->operands[0].value.reg & 0x1F) << 7) |
-			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
 			((instruction->operands[0].value.reg & 0x1F) << 15) |
 			((instruction->operands[1].value.reg & 0x1F) << 20) |
 			((mnemonic_funct7(instruction->mnemonic) & 0x7F) << 25);
@@ -99,7 +136,7 @@ static u32 encode_i_type(const hx_instruction *instruction)
 		case 2:
 			encoded = (opcode) |
 			((instruction->operands[0].value.reg & 0x1F) << 7) |
-			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
 			((instruction->operands[1].value.reg & 0x1F) << 15) |
 			((instruction->operands[2].value.imm & 0xFFF) << 20);
 			break;
@@ -107,20 +144,28 @@ static u32 encode_i_type(const hx_instruction *instruction)
 			if (instruction->mnemonic == HX_MN_JALR) {
 				encoded = (opcode) |
 				((instruction->operands[0].value.reg & 0x1F) << 7) |
-				((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
+				((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
 				((instruction->operands[1].value.reg & 0x1F) << 15) |
 				((instruction->operands[2].value.imm & 0xFFF) << 20);
 			} else {
-				encoded = (opcode) |
-				((instruction->operands[0].value.reg & 0x1F) << 7) |
-				((mnemonic_funct3(instruction->mnemonic) & 0x03) << 12) |
-				((instruction->operands[0].value.reg & 0x1F) << 15) |
-				((instruction->operands[1].value.imm & 0xFFF) << 20);
+				if (opcode == 0x03) {
+					encoded = (opcode) |
+					((instruction->operands[0].value.reg & 0x1F) << 7) |
+					((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
+					((instruction->operands[1].value.memory.reg & 0x1F) << 15) |
+					((instruction->operands[1].value.memory.offset & 0xFFF) << 20);
+				} else {
+					encoded = (opcode) |
+					((instruction->operands[0].value.reg & 0x1F) << 7) |
+					((mnemonic_funct3(instruction->mnemonic) & 0x07) << 12) |
+					((instruction->operands[0].value.reg & 0x1F) << 15) |
+					((instruction->operands[1].value.imm & 0xFFF) << 20);
+				}
 			}
 			break;
 		case 0: /* TODO: Many immediate for some system instructions */
 			encoded = (opcode) |
-			((mnemonic_funct3(instruction->mnemonic) &0x03) << 12);
+			((mnemonic_funct3(instruction->mnemonic) &0x07) << 12);
 			break;
 	}
 
@@ -134,14 +179,14 @@ static u32 encode_s_type(const hx_instruction *instruction)
 
 	if (instruction->operands[1].type == HX_OPERAND_MEMORY) {
 		encoded = (opcode) |
-			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 7) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x07) << 7) |
 			((instruction->operands[0].value.reg & 0x1F) << 10) |
 			((instruction->operands[1].value.memory.reg & 0x1F) << 15) |
 			((instruction->operands[1].value.memory.offset & 0xFFF) << 20);
 
 	} else if (instruction->operands[1].type == HX_OPERAND_REGISTER) {
 		encoded = (opcode) |
-			((mnemonic_funct3(instruction->mnemonic) & 0x03) << 7) |
+			((mnemonic_funct3(instruction->mnemonic) & 0x07) << 7) |
 			((instruction->operands[0].value.memory.reg & 0x1F) << 10) |
 			((instruction->operands[1].value.memory.reg & 0x1F) << 15) |
 			((instruction->operands[0].value.memory.offset & 0xFFF) << 20);
@@ -166,10 +211,10 @@ static u32 encode_b_type(const hx_instruction *instruction, hx_symbol_table *tab
 	}
 
 	u32 encoded = (opcode) |
-		((mnemonic_funct3(instruction->mnemonic) & 0x03) << 7) |
+		((mnemonic_funct3(instruction->mnemonic) & 0x07) << 7) |
 		((instruction->operands[0].value.reg & 0x1F) << 10) |
 		((instruction->operands[1].value.reg & 0x1F) << 15) |
-		((address & 0x7FF) << 20);
+		(((address >> 1) & 0x7FF) << 20);
 	
 	return encoded;
 }
@@ -190,21 +235,50 @@ static u32 encode_j_type(const hx_instruction *instruction, hx_symbol_table *tab
 
 	u32 encoded = (opcode) |
 		((instruction->operands[0].value.reg & 0x1F) << 7) |
-		((address & 0x7FFFF) << 12);
+		(((address >> 1) & 0x7FFFF) << 12);
 	
 	return encoded;
 }
 
 static u32 encode_m_type(const hx_instruction *instruction)
 {
+	u32 encoded;
 	u8 opcode = mnemonic_opcode(instruction->mnemonic);
-	(void)opcode;
-	return 0x0;
+
+	switch (instruction->mnemonic) {
+		case HX_MN_MOVZ:
+			encoded = (opcode) |
+				((instruction->operands[0].value.reg & 0x1F) << 7) |
+				(0x0 << 12) |
+				((instruction->operands[2].value.imm & 0x3) << 14) |
+				((instruction->operands[1].value.imm & 0xFFFF) << 16);
+			break;
+
+		case HX_MN_MOVP:
+			encoded = (opcode) |
+				((instruction->operands[0].value.reg & 0x1F) << 7) |
+				(0x1 << 12) |
+				((instruction->operands[2].value.imm & 0x3) << 14) |
+				((instruction->operands[1].value.imm & 0xFFFF) << 16);
+			break;
+
+		case HX_MN_MOVN:
+			encoded = (opcode) |
+				((instruction->operands[0].value.reg & 0x1F) << 7) |
+				(0x2 << 12) |
+				((instruction->operands[2].value.imm & 0x3) << 14) |
+				((instruction->operands[1].value.imm & 0xFFFF) << 16);
+			break;
+
+		default:
+			encoded = 0x0;
+	}
+
+	return encoded;
 }
 
 static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table *symbols, hx_binary *binary)
 {
-	(void)symbols;
 	(void)binary;
 
 	u32 inst_bytes = 0;
@@ -248,9 +322,6 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 		case HX_MN_SRET:	
 		case HX_MN_WFI:		
 		case HX_MN_JALR:	
-			inst_bytes = encode_i_type(instruction);
-			break;
-
 		case HX_MN_LB:		
 		case HX_MN_LQ:		
 		case HX_MN_LH:		
@@ -258,6 +329,9 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 		case HX_MN_LBU:		
 		case HX_MN_LQU:		
 		case HX_MN_LHU:		
+			inst_bytes = encode_i_type(instruction);
+			break;
+
 		case HX_MN_SB:		
 		case HX_MN_SQ:		
 		case HX_MN_SH:		
@@ -287,7 +361,8 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 
 		case HX_MN_CS:		
 		case HX_MN_CSINC:	
-		case HX_MN_CSNEG:	
+		case HX_MN_CSNEG:
+			inst_bytes = encode_r_type(instruction);
 		
 		default:
 			break;

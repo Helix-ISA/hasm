@@ -388,3 +388,257 @@ u8 mnemonic_funct7(hx_mnemonic mnemonic)
 			return 0xFF; /* Unknown error code */
 	}
 }
+
+hx_mnemonic mnemonic_from_funct3(u8 opcode, u8 funct3)
+{
+	switch (opcode) {
+		case 0x27:
+			switch (funct3) {
+				case 0x0: return HX_MN_ADD;
+				case 0x1: return HX_MN_DIV;
+				case 0x2: return HX_MN_REM;
+				case 0x3: return HX_MN_XOR;
+				case 0x4: return HX_MN_SLL;
+				case 0x5: return HX_MN_SLR;
+				case 0x6: return HX_MN_SLT;
+				case 0x7: return HX_MN_SLTU;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* I-type ALU */
+		case 0x07:
+			switch (funct3) {
+				case 0x0: return HX_MN_ADDI;
+				case 0x1: return HX_MN_ANDI;
+				case 0x2: return HX_MN_ORI;
+				case 0x3: return HX_MN_XORI;
+				case 0x4: return HX_MN_SLLI;
+				case 0x5: return HX_MN_SLRI;
+				case 0x6: return HX_MN_SLTI;
+				case 0x7: return HX_MN_SLTUI;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Loads */
+		case 0x03:
+			switch (funct3) {
+				case 0x0: return HX_MN_LB;
+				case 0x1: return HX_MN_LQ;
+				case 0x2: return HX_MN_LH;
+				case 0x3: return HX_MN_LW;
+				case 0x4: return HX_MN_LBU;
+				case 0x5: return HX_MN_LQU;
+				case 0x6: return HX_MN_LHU;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Stores */
+		case 0x23:
+			switch (funct3) {
+				case 0x0: return HX_MN_SB;
+				case 0x1: return HX_MN_SQ;
+				case 0x2: return HX_MN_SH;
+				case 0x3: return HX_MN_SW;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Branches */
+		case 0x4F:
+			switch (funct3) {
+				case 0x0: return HX_MN_BEQ;
+				case 0x1: return HX_MN_BNE;
+				case 0x2: return HX_MN_BLT;
+				case 0x3: return HX_MN_BGE;
+				case 0x4: return HX_MN_BLTU;
+				case 0x5: return HX_MN_BGEU;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* System instructions */
+		case 0x63:
+			switch (funct3) {
+				case 0x0: return HX_MN_SCALL;
+				case 0x1: return HX_MN_STRAP;
+				case 0x2: return HX_MN_SRET;
+				case 0x3: return HX_MN_WFI;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* MOV instructions */
+		case 0x43:
+			switch (funct3) {
+				case 0x0: return HX_MN_MOVZ;
+				case 0x1: return HX_MN_MOVP;
+				case 0x2: return HX_MN_MOVN;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Conditional select */
+		case 0x77:
+			switch (funct3) {
+				case 0x0: return HX_MN_CS;
+				case 0x1: return HX_MN_CSINC;
+				case 0x2: return HX_MN_CSNEG;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* These have no funct3 discrimination. */
+		case 0x6F:
+			return HX_MN_JAL;
+
+		case 0x73:
+			return HX_MN_JALR;
+
+		default:
+			return HX_MN_UNKNOWN;
+	}
+}
+
+hx_mnemonic mnemonic_from_encoding(u8 opcode, u8 funct3, u8 funct7)
+{
+	switch (opcode) {
+		/* R-type ALU */
+		case 0x27:
+			switch (funct3) {
+				case 0x0:
+					switch (funct7) {
+						case 0x00: return HX_MN_ADD;
+						case 0x40: return HX_MN_SUB;
+						case 0x01: return HX_MN_MUL;
+						default:   return HX_MN_UNKNOWN;
+					}
+
+				case 0x1:
+					if (funct7 == 0x01)
+						return HX_MN_DIV;
+					if (funct7 == 0x00)
+						return HX_MN_AND;
+					return HX_MN_UNKNOWN;
+
+				case 0x2:
+					if (funct7 == 0x01)
+						return HX_MN_REM;
+					return HX_MN_OR;
+
+				case 0x3:
+					return HX_MN_XOR;
+
+				case 0x4:
+					return HX_MN_SLL;
+
+				case 0x5:
+					switch (funct7) {
+						case 0x00: return HX_MN_SLR;
+						case 0x40: return HX_MN_SAR;
+						default:   return HX_MN_UNKNOWN;
+					}
+
+				case 0x6:
+					return HX_MN_SLT;
+
+				case 0x7:
+					return HX_MN_SLTU;
+
+				default:
+					return HX_MN_UNKNOWN;
+			}
+
+		/* Immediate ALU */
+		case 0x07:
+			switch (funct3) {
+				case 0x0: return HX_MN_ADDI;
+				case 0x1: return HX_MN_ANDI;
+				case 0x2: return HX_MN_ORI;
+				case 0x3: return HX_MN_XORI;
+				case 0x4: return HX_MN_SLLI;
+
+				case 0x5:
+					/* SLR/SAR immediate distinguished by funct7. */
+					switch (funct7) {
+						case 0x00: return HX_MN_SLRI;
+						case 0x40: return HX_MN_SARI;
+						default:   return HX_MN_UNKNOWN;
+					}
+
+				case 0x6: return HX_MN_SLTI;
+				case 0x7: return HX_MN_SLTUI;
+
+				default:
+					return HX_MN_UNKNOWN;
+			}
+
+		/* Loads */
+		case 0x03:
+			switch (funct3) {
+				case 0x0: return HX_MN_LB;
+				case 0x1: return HX_MN_LQ;
+				case 0x2: return HX_MN_LH;
+				case 0x3: return HX_MN_LW;
+				case 0x4: return HX_MN_LBU;
+				case 0x5: return HX_MN_LQU;
+				case 0x6: return HX_MN_LHU;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Stores */
+		case 0x23:
+			switch (funct3) {
+				case 0x0: return HX_MN_SB;
+				case 0x1: return HX_MN_SQ;
+				case 0x2: return HX_MN_SH;
+				case 0x3: return HX_MN_SW;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Branches */
+		case 0x4F:
+			switch (funct3) {
+				case 0x0: return HX_MN_BEQ;
+				case 0x1: return HX_MN_BNE;
+				case 0x2: return HX_MN_BLT;
+				case 0x3: return HX_MN_BGE;
+				case 0x4: return HX_MN_BLTU;
+				case 0x5: return HX_MN_BGEU;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* JAL */
+		case 0x6F:
+			return HX_MN_JAL;
+
+		/* JALR */
+		case 0x73:
+			return HX_MN_JALR;
+
+		/* System */
+		case 0x63:
+			switch (funct3) {
+				case 0x0: return HX_MN_SCALL;
+				case 0x1: return HX_MN_STRAP;
+				case 0x2: return HX_MN_SRET;
+				case 0x3: return HX_MN_WFI;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* MOV */
+		case 0x43:
+			switch (funct3) {
+				case 0x0: return HX_MN_MOVZ;
+				case 0x1: return HX_MN_MOVP;
+				case 0x2: return HX_MN_MOVN;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		/* Conditional select */
+		case 0x77:
+			switch (funct3) {
+				case 0x0: return HX_MN_CS;
+				case 0x1: return HX_MN_CSINC;
+				case 0x2: return HX_MN_CSNEG;
+				default:  return HX_MN_UNKNOWN;
+			}
+
+		default:
+			return HX_MN_UNKNOWN;
+	}
+}

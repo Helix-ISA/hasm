@@ -1,4 +1,4 @@
 # Artifacts
 bin/
 bin-int/
-*.hxo
+out

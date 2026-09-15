@@ -10,8 +10,10 @@ b8 cl_parse_init(hx_cli *cli)
 	cli->parser_debug = false;
 	cli->input_file = NULL;
 	cli->output_file = NULL;
+	cli->out_file_name = NULL;
 	cli->symbol_debug = false;
 	cli->pic = false;
+	cli->disassemble = false;
 
 	return success;
 }
@@ -19,7 +21,6 @@ b8 cl_parse_init(hx_cli *cli)
 b8 cl_parse_free(hx_cli *cli)
 {
 	fclose(cli->input_file);
-	fclose(cli->output_file);
 
 	return success;
 }
@@ -38,6 +39,8 @@ b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 			cli->symbol_debug = true;
 		} else if (strcmp(args[i], "-pic") == 0) {
 			cli->pic = true;
+		} else if (strcmp(args[i], "-d") == 0) {
+			cli->disassemble = true;
 		} else if (strcmp(args[i], "-o") == 0) {
 			if (i + 1 == count) {
 				fprintf(stderr, "expected output after \"-o\"\n");
@@ -46,12 +49,8 @@ b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 
 			i++;
 
-			cli->output_file = fopen(args[i], "wb");
+			cli->out_file_name = args[1];
 
-			if (cli->output_file == NULL) {
-				perror("fopen");
-				return failure;
-			}
 		} else {
 			cli->input_file = fopen(args[i], "rb");
 
@@ -67,8 +66,8 @@ b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 		return failure;
 	}
 
-	if (cli->output_file == NULL) {
-		cli->output_file = fopen("out.hxo", "wb");
+	if (cli->out_file_name == NULL) {
+		cli->out_file_name = "out";
 	}
 
 	return success;

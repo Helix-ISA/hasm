@@ -67,7 +67,9 @@ typedef enum {
 
 	HX_MN_CS,
 	HX_MN_CSINC,
-	HX_MN_CSNEG
+	HX_MN_CSNEG,
+
+	HX_MN_UNKNOWN
 
 } hx_mnemonic;
 
@@ -76,5 +78,7 @@ u8 mnemonic_opcode(hx_mnemonic mnemonic);
 u8 mnemonic_funct3(hx_mnemonic mnemonic);
 u8 mnemonic_funct7(hx_mnemonic mnemonic);
 b8 mnemonic_from_token(hx_token token, hx_mnemonic *mnemonic);
+
+hx_mnemonic mnemonic_from_encoding(u8 opcode, u8 funct3, u8 funct7);
 
 #endif
