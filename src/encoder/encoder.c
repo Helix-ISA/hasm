@@ -235,7 +235,7 @@ static u32 encode_j_type(const hx_instruction *instruction, hx_symbol_table *tab
 
 	u32 encoded = (opcode) |
 		((instruction->operands[0].value.reg & 0x1F) << 7) |
-		(((address >> 1) & 0x7FFFF) << 12);
+		(((address >> 1) & 0xFFFFF) << 12);
 	
 	return encoded;
 }

@@ -46,7 +46,7 @@ b8 symbol_add(hx_symbol_table *table, hx_label label, u32 address)
 	if (table->count >= table->capacity) {
 		u32 new_capacity = table->capacity * 2;
 
-		hx_symbol *new_symbols = realloc(table->symbols, new_capacity);
+		hx_symbol *new_symbols = realloc(table->symbols, sizeof(hx_symbol) * new_capacity);
 
 		if (new_symbols == NULL)
 			return failure;
