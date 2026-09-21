@@ -270,6 +270,13 @@ static u32 encode_m_type(const hx_instruction *instruction)
 				((instruction->operands[1].value.imm & 0xFFFF) << 16);
 			break;
 
+		case HX_MN_MOV:
+			encoded = (opcode) |
+				((instruction->operands[0].value.reg & 0x1F) << 7) |
+				(0x2 << 12) |
+				((instruction->operands[1].value.imm & 0xFFFF) << 16);
+			break;
+
 		default:
 			encoded = 0x0;
 	}
@@ -356,6 +363,7 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 		case HX_MN_MOVZ:	
 		case HX_MN_MOVP:	
 		case HX_MN_MOVN:
+		case HX_MN_MOV:
 			inst_bytes = encode_m_type(instruction);
 			break;
 
