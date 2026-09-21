@@ -18,9 +18,9 @@ jobs:
         run: |
           pacman -Sy --noconfirm archlinux-keyring
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel git
+          pacman -S --noconfirm base-devel git clang
 
-      - name: Checkout HAS
+      - name: Checkout hasm
         uses: actions/checkout@v6
 
       - name: Build package
@@ -30,7 +30,7 @@ jobs:
 
           su builder -c '
             cd "$GITHUB_WORKSPACE"
-            makepkg --syncdeps --noconfirm
+            makepkg --noconfirm
           '
 
       - name: Clone package repository
@@ -43,13 +43,13 @@ jobs:
 
       - name: Add package to repository
         run: |
-          cp ./*.pkg.tar.zst nucleus/x86_64/
+          cp ./*.pkg.tar.zst nucleus/
 
           cd nucleus
 
           repo-add \
-            x86_64/helix.db.tar.gz \
-            x86_64/*.pkg.tar.zst
+            helix.db.tar.gz \
+            *.pkg.tar.zst
 
       - name: Push package repository
         working-directory: nucleus
