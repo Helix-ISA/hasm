@@ -60,6 +60,6 @@ jobs:
             "https://x-access-token:${NUCLEUS_TOKEN}@github.com/Helix-ISA/nucleus.git"
 
           git add .
-          git commit -m "Update hasm package"
+          git commit -m "action: Update hasm package"
           git push origin master
 
