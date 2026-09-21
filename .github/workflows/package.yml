@@ -41,6 +41,11 @@ jobs:
             "https://x-access-token:${NUCLEUS_TOKEN}@github.com/Helix-ISA/nucleus.git" \
             nucleus
 
+          cd nucleus
+
+          git remote set-url origin \
+            "https://x-access-token:${NUCLEUS_TOKEN}@github.com/Helix-ISA/nucleus.git"
+
       - name: Add package to repository
         run: |
           cp ./*.pkg.tar.zst nucleus/
@@ -59,4 +64,4 @@ jobs:
 
           git add .
           git commit -m "Update hasm package"
-          git push
+          git push origin master
