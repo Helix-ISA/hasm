@@ -7,17 +7,13 @@ license=('MIT')
 depends=('glibc')
 makedepends=('clang' 'make' 'git')
 
-source=("git+https://github.com/Helix-ISA/hasm.git")
-sha256sums=('SKIP')
+source=()
+sha256sums=()
 
 build() {
-    cd "$srcdir/hasm"
-
     make
 }
 
 package() {
-    cd "$srcdir/hasm"
-
     install -Dm755 bin/hasm "$pkgdir/usr/bin/hasm"
 }
