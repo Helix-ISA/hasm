@@ -1,0 +1,62 @@
+name: Build and publish Arch package
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Sy --noconfirm archlinux-keyring
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel git
+
+      - name: Checkout HAS
+        uses: actions/checkout@v6
+
+      - name: Build package
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+
+          su builder -c '
+            cd "$GITHUB_WORKSPACE"
+            makepkg --syncdeps --noconfirm
+          '
+
+      - name: Clone package repository
+        env:
+          NUCLEUS_TOKEN: ${{ secrets.NUCLEUS_TOKEN }}
+        run: |
+          git clone \
+            "https://x-access-token:${NUCLEUS_TOKEN}@github.com/Helix-ISA/nucleus.git" \
+            nucleus
+
+      - name: Add package to repository
+        run: |
+          cp ./*.pkg.tar.zst nucleus/x86_64/
+
+          cd nucleus
+
+          repo-add \
+            x86_64/helix.db.tar.gz \
+            x86_64/*.pkg.tar.zst
+
+      - name: Push package repository
+        working-directory: nucleus
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add x86_64/
+          git commit -m "Update hasm package"
+          git push
