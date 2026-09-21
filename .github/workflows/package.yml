@@ -46,10 +46,7 @@ jobs:
           cp ./*.pkg.tar.zst nucleus/
 
           cd nucleus
-
-          repo-add \
-            helix.db.tar.gz \
-            ./*.pkg.tar.zst
+          ./build.sh
 
       - name: Push package repository
         working-directory: nucleus
