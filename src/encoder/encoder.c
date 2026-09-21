@@ -273,7 +273,7 @@ static u32 encode_m_type(const hx_instruction *instruction)
 		case HX_MN_MOV:
 			encoded = (opcode) |
 				((instruction->operands[0].value.reg & 0x1F) << 7) |
-				(0x2 << 12) |
+				(0x3 << 12) |
 				((instruction->operands[1].value.imm & 0xFFFF) << 16);
 			break;
 
