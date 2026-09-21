@@ -49,7 +49,7 @@ b8 cl_parse_args(s32 count, char **args, hx_cli *cli)
 
 			i++;
 
-			cli->out_file_name = args[1];
+			cli->out_file_name = args[i];
 
 		} else {
 			cli->input_file = fopen(args[i], "rb");
