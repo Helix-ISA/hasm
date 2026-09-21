@@ -7,7 +7,7 @@ license=('MIT')
 depends=('glibc')
 makedepends=('clang' 'make' 'git')
 
-source=("git+https://github.com/Helix-ISA/hasm.git#branch=master")
+source=("https://github.com/Helix-ISA/hasm/archive/refs/heads/master.tar.gz")
 sha256sums=('SKIP')
 
 build() {
