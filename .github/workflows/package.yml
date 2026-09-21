@@ -6,9 +6,6 @@ on:
       - master
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -37,9 +34,11 @@ jobs:
           '
 
       - name: Clone package repository
+        env:
+          NUCLEUS_TOKEN: ${{ secrets.NUCLEUS_TOKEN }}
         run: |
           git clone \
-            "https://x-access-token:${{ github.token }}@github.com/Helix-ISA/nucleus.git" \
+            "https://x-access-token:${NUCLEUS_TOKEN}@github.com/Helix-ISA/nucleus.git" \
             nucleus
 
       - name: Add package to repository
@@ -54,12 +53,14 @@ jobs:
 
       - name: Push package repository
         working-directory: nucleus
+        env:
+          NUCLEUS_TOKEN: ${{ secrets.NUCLEUS_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git remote set-url origin \
-            "https://x-access-token:${{ github.token }}@github.com/Helix-ISA/nucleus.git"
+            "https://x-access-token:${NUCLEUS_TOKEN}@github.com/Helix-ISA/nucleus.git"
 
           git add .
           git commit -m "Update hasm package"
