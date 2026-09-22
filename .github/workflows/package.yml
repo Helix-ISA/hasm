@@ -34,6 +34,9 @@ jobs:
 
           pacman -Sy --noconfirm
 
+          pacman -Sl nucleus
+          pacman -Ss flagparser
+
       - name: Build package
         run: |
           useradd -m builder
