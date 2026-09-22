@@ -19,6 +19,12 @@ static void error(char *message) {
 
 static const fp_flag flags[] = {
 	{
+		.sname = "h",
+		.lname = "help",
+		.flag_type = FLAG_ARG_NONE,
+		.hidden = true
+	},
+	{
 		.sname = "v",
 		.lname = "verbose",
 		.flag_type = FLAG_ARG_NONE,
@@ -68,116 +74,164 @@ int hasm(int argc, char **argv)
 		.flag_count = sizeof(flags) / sizeof(flags[0])
 	};
 
-	fp_result result;
+	fp_result result = {0};
+
+	FILE *in = NULL;
+	FILE *out = NULL;
+	char *source = NULL;
+	hx_token *tokens = NULL;
+
+	hx_parser parser;
+	hx_program program;
+
+	b8 program_initialized = false;
+	b8 encoder_initialized = false;
+
+	/* Pares flags */
 	if (!fp_flag_parse(&config, argc, argv, &result)) {
 		fp_print_error(&config, result.error);
 		status = 1;
-		goto free_cli;
+		goto cleanup;
 	}
 
+	/* Help */
+	const fp_parsed_flag *help = fp_get_flag(&result, "help");
+	if (help) {
+		fp_print_usage(&config);
+		goto cleanup;
+	}
+	
 	/* Disassemble */
 	const fp_parsed_flag *disassemble = fp_get_flag(&result, "disassemble");
 	if (disassemble) {
 		decoded_disassemble(disassemble->value);
-		goto free_cli;
+		goto cleanup;
 	}
 
 	/* Assemble */
 	if (result.positions.count < 1) {
 		error("expected input files");
 		status = 1;
-		goto free_cli;
+		goto cleanup;
 	} else if (result.positions.count > 1) {
 		error("currently only supports a single input file");
 		status = 1;
-		goto free_cli;
+		goto cleanup;
 	}
 
-	/* Source bytes */
+	/* Input validation */
+	if (result.positions.count == 0) {
+		error("expected input file");
+		status = 1;
+		goto cleanup;
+	}
+	
+	if (result.positions.count > 0) {
+		error("currently only supports a single input file");
+		status = 1;
+		goto cleanup;
+	}
+
+	/* Output input file */
+	in = fopen(result.positions.values[0], "rb");
+	if (in == NULL) {
+		perror(result.positions.values[0]);
+		status = 1;
+		goto cleanup;
+	}
+
+	/* Read source */
 	u32 source_length = 0;
-	FILE *in = fopen(result.positions.values[0], "rb");
-	char *source = read_file(in, &source_length);
+	source = read_file(in, &source_length);
+
+	fclose(in);
+	in = NULL;
 
 	if (source == NULL) {
 		status = 1;
-		goto free_cli;
+		goto cleanup;
 	}
 
-	/* Tokenize the source */
+	/* Tokenize */
 	u32 token_count = 0;
-	hx_token *tokens = lexer_tokenize(
-			source,
-			source_length,
-			&token_count
-			);
-
+	tokens = lexer_tokenize(source, source_length, &token_count);
 	if (tokens == NULL) {
-		fprintf(stderr, "lexer_tokenize failed\n");
+		error("lexer_tokenize failed");
 		status = 1;
-		goto cleanup_source;
+		goto cleanup;
 	}
 
-	/* Prepare parser and nodes */
-	hx_parser parser;
+	/* Initialize parser */
 	parser_init(&parser, tokens, token_count);
 
-	hx_program program;
 	program_init(&program);
+	program_initialized = true;
 
-	/* Parse the tokens */
 	if (!parser_parse(&parser, &program)) {
 		status = 1;
-		goto cleanup_program;
+		goto cleanup;
 	}
 
-	/* Parse complete open write file */
+	/* Open output file */
 	const fp_parsed_flag *output = fp_get_flag(&result, "output");
-	FILE *out;
-	if (output) {
-		out = fopen(output->value, "wb");
-		if (out == NULL) {
-			perror("fopen");
-			status = 1;
-			goto cleanup_program;
-		}
+	out = fopen(output->value, "wb");
+	if (out == NULL) {
+		perror(output->value);
+		status = 1;
+		goto cleanup;
 	}
 
-	/* Encode the nodes into binary */
 	if (!encoder_init(&program)) {
-		fprintf(stderr, "failed to encode nodes\n");
+		error("failed to initialize encoder");
 		status = 1;
-		goto cleanup_encoder;
+		goto cleanup;
 	}
+
+	encoder_initialized = true;
 
 	hx_binary binary = {0};
 	encoder_encode(&program, &binary);
 
-	for (u32 i = 0; i < binary.size; i++) {
-		fwrite(&binary.data[i], sizeof(u8), 1, out);
-	}
-
-	/* Free encoder */
-	if (!encoder_free(&program)) {
-		fprintf(stderr, "failed to free encoder\n");
+	if (binary.data == NULL && binary.size != 0) {
+		error("encoder produced invalid binary");
 		status = 1;
-		goto cleanup_encoder;
+		goto cleanup;
 	}
-		goto free_cli;
 
-cleanup_encoder:
-	fclose(out);
+	if (binary.size > 0) {
+		u32 written = fwrite(binary.data, sizeof(*binary.data), binary.size, out);
 
-cleanup_program:
-	if (!program_free(&program)) {
-		fprintf(stderr, "failed to free program");
-
-		if (status == 0)
+		if (written != binary.size) {
+			perror("fwrite");
 			status = 1;
+			goto cleanup;
+		}
 	}
 
-cleanup_source:
+cleanup:
+	if (encoder_initialized) {
+		if (!encoder_free(&program)) {
+			error("failed to free encoder");
+			status = 1;
+		}
+	}
+
+	if (program_initialized) {
+		if (!program_free(&program)) {
+			error("failed to free program");
+			status = 1;
+		}
+	}
+
+	if (out != NULL)
+		fclose(out);
+
+	if (in != NULL)
+		fclose(in);
+
+	free(tokens);
 	free(source);
-free_cli:
+
 	fp_result_free(&result);
 
 	return status;
