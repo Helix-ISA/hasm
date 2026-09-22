@@ -4,7 +4,7 @@ pkgrel=7
 pkgdesc="Helix Assembler"
 arch=('x86_64')
 license=('MIT')
-depends=('glibc', 'flagparser')
+depends=('glibc' 'flagparser')
 makedepends=('clang' 'make' 'git')
 
 source=("https://github.com/Helix-ISA/hasm/archive/refs/heads/master.tar.gz")
