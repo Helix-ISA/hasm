@@ -33,9 +33,7 @@ jobs:
           EOF
 
           pacman -Sy --noconfirm
-
-          pacman -Sl nucleus
-          pacman -Ss flagparser
+          pacman -S --noconfirm flagparser
 
       - name: Build package
         run: |
