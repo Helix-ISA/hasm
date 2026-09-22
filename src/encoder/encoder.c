@@ -384,6 +384,7 @@ static b8 encode_instruction(const hx_instruction *instruction, hx_symbol_table 
 	return success;
 }
 
+/*
 static void symbol_debug(const hx_symbol_table *sym_table, b8 pic)
 {
 	printf("Symbol Table (%s)\n", pic ? "PIC" : "non-PIC");
@@ -402,20 +403,14 @@ static void symbol_debug(const hx_symbol_table *sym_table, b8 pic)
 	}
 
 	printf("\n");
-}
+}*/
 
-b8 encoder_encode(const hx_program *program, hx_binary *binary, hx_cli *cli)
+b8 encoder_encode(const hx_program *program, hx_binary *binary, FILE *output)
 {
 	hx_symbol_table sym_table;
 	symbol_table_init(&sym_table);
 	if (!collect_symbols(program, &sym_table))
 		return failure;
-
-	if (cli->symbol_debug) {
-		symbol_debug(&sym_table, cli->pic);
-		return failure;
-	}
-
 
 	for (u32 i = 0; i < program->node_count; i++) {
 		switch (program->nodes[i].type) {
@@ -430,8 +425,7 @@ b8 encoder_encode(const hx_program *program, hx_binary *binary, hx_cli *cli)
 		}
 	}
 
-	(void)program;
-	(void)binary;
+	(void)output;
 
 	return success;
 }

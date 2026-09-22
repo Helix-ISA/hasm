@@ -3,145 +3,104 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "cli/cl_parser.h"
+#include "cli/cli_parser.h"
 #include "encoder/encoder.h"
 #include "decoder/decoder.h"
-#include "isa/instruction.h"
-#include "isa/mnemonic.h"
-#include "isa/node.h"
-#include "isa/operand.h"
 #include "isa/program.h"
-#include "isa/register.h"
 #include "lexer/lexer.h"
 #include "lexer/token.h"
 #include "io/file.h"
 #include "parser/parser.h"
 #include "types.h"
 
-static void print_token(hx_token token)
-{
-	printf(
-			"%-10s  line=%u  column=%u  text=\"%.*s\"\n",
-			token_type_name(token.type),
-			token.line,
-			token.column,
-			(int)token.text_length,
-			token.text
-	      );
+static void error(char *message) {
+	fprintf(stderr, "hasm: %s\n", message);
 }
 
-static void print_operand(const hx_operand *operand)
+static const cli_arg args[] = {
+	{
+		.sname = "v",
+		.lname = "verbose",
+		.arg_type = CLI_ARG_NONE,
+		.description = "Enable verbose mode"
+	},
+	{
+		.sname = "o",
+		.lname = "output",
+		.arg_type = CLI_ARG_REQUIRED,
+		.value_type = "FILE",
+		.default_value = "out",
+		.description = "Specifies output file",
+	},
+	{
+		.sname = "d",
+		.lname = "disassemble",
+		.arg_type = CLI_ARG_REQUIRED,
+		.value_type = "FILE",
+		.description = "Specify file to disassemble",
+	},
+	{
+		.lname = "lexer-debug",
+		.arg_type = CLI_ARG_NONE,
+		.description = "Enable lexer debug output",
+	},
+	{
+		.lname = "parser-debug",
+		.arg_type = CLI_ARG_NONE,
+		.description = "Enable parser debug output",
+	},
+	{
+		.lname = "symbol-debug",
+		.arg_type = CLI_ARG_NONE,
+		.description = "Enable symbol debug output",
+	},
+};
+
+int hasm(int argc, char **argv)
 {
-	switch (operand->type) {
-		case HX_OPERAND_REGISTER:
-			printf("register: r%u", operand->value.reg);
-			break;
-		case HX_OPERAND_IMMEDIATE:
-			printf("immediate: %lld", (long long)operand->value.imm);
-			break;
-		case HX_OPERAND_MEMORY:
-			if (operand->value.memory.offset > 0) {
-				printf(
-						"memory: [r%u + %lld]",
-						operand->value.memory.reg,
-						(long long)operand->value.memory.offset
-				      );
-			} else if (operand->value.memory.offset < 0) {
-				printf(
-						"memory: [r%u - %lld]",
-						operand->value.memory.reg,
-						(long long)-operand->value.memory.offset
-				      );
-			} else {
-				printf(
-						"memory: [r%u]",
-						operand->value.memory.reg
-				      );
-			}
-			break;
-		case HX_OPERAND_LABEL:
-			printf("label: %.*s", (int)operand->value.label.length,
-					operand->value.label.text);
-			break;
+	u8 status = 0;
 
-		default:
-			printf("unknown");
-			break;
-	}
-}
+	const cli_config config = {
+		.program_name = argv[0],
+		.version = "0.1.0",
+		.description = "Helix assembler",
+		.args = args,
+		.arg_count = sizeof(args) / sizeof(args[0])
+	};
 
-static void parser_debug(const hx_program *program)
-{
-	for (u32 i = 0; i < program->node_count; i++) {
-		const hx_node *node = &program->nodes[i];
-
-		switch (node->type) {
-			case HX_NODE_LABEL:
-				printf("label: %.*s\n", (int)node->value.label.name_length,
-						node->value.label.name);
-				break;
-			case HX_NODE_INSTRUCTION: {
-				const hx_instruction *instruction =
-					&node->value.instruction;
-
-				printf(
-					"instruction:\n"
-					"  mnemonic: %s\n"
-					"  width:    %s\n"
-					"  line:     %u\n"
-					"  operands: %u\n",
-					mnemonic_name(instruction->mnemonic),
-					width_name(instruction->width),
-					instruction->line,
-					instruction->operand_count
-				);
-
-				for (u32 j = 0; j < instruction->operand_count; j++) {
-					printf("    [%u] ", j);
-
-					print_operand(&instruction->operands[j]);
-
-					putchar('\n');
-				}
-				break;
-			}
-
-			default:
-				printf("unknown node\n");
-				break;
-		}
-	}
-}
-
-int hasm(int argc, char** argv)
-{
-	int status = 0;
-
-	/* CLI Args */
-	hx_cli cli;
-	cl_parse_init(&cli);
-
-	if (!cl_parse_args(argc, argv, &cli)) {
-		status = failure;
-		goto cleanup_cli;
+	cli_result result;
+	if (!cli_parse(&config, argc, argv, &result)) {
+		cli_print_error(&config, result.error);
+		status = 1;
+		goto free_cli;
 	}
 
-	if (cli.disassemble) {
-		if (!decoder_decode(&cli)) {
-			status = 1;
-			goto cleanup_cli;
-		}
+	/* Disassemble */
+	const cli_parsed_arg *disassemble = cli_get_arg(&result, "disassemble");
+	if (disassemble) {
+		decoded_disassemble(disassemble->value);
+		goto free_cli;
+	}
 
-		return 0;
+	/* Assemble */
+	if (result.positions.count < 1) {
+		error("expected input files");
+		status = 1;
+		goto free_cli;
+	} else if (result.positions.count > 1) {
+		error("currently only supports a single input file");
+		status = 1;
+		goto free_cli;
 	}
 
 	/* Source bytes */
 	u32 source_length = 0;
-	char *source = read_file(cli.input_file, &source_length);
+	FILE *in = fopen(result.positions.values[0], "rb");
+	char *source = read_file(in, &source_length);
 
 	if (source == NULL) {
 		status = 1;
-		goto cleanup_cli;
+		goto free_cli;
 	}
 
 	/* Tokenize the source */
@@ -158,14 +117,6 @@ int hasm(int argc, char** argv)
 		goto cleanup_source;
 	}
 
-	/* DEBUG: Remove in release */
-	if (cli.lexer_debug) {
-		for (u32 i = 0; i < token_count; i++)
-			print_token(tokens[i]);
-
-		goto cleanup_tokens;
-	}
-
 	/* Prepare parser and nodes */
 	hx_parser parser;
 	parser_init(&parser, tokens, token_count);
@@ -179,18 +130,16 @@ int hasm(int argc, char** argv)
 		goto cleanup_program;
 	}
 
-	/* DEBUG: Remove in release */
-	if (cli.parser_debug) {
-		parser_debug(&program);
-		goto cleanup_program;
-	}
-
 	/* Parse complete open write file */
-	cli.output_file = fopen(cli.out_file_name, "wb");
-	if (cli.output_file == NULL) {
-		perror("fopen");
-		status = 1;
-		goto cleanup_program;
+	const cli_parsed_arg *output = cli_get_arg(&result, "output");
+	FILE *out;
+	if (output) {
+		out = fopen(output->value, "wb");
+		if (out == NULL) {
+			perror("fopen");
+			status = 1;
+			goto cleanup_program;
+		}
 	}
 
 	/* Encode the nodes into binary */
@@ -200,11 +149,11 @@ int hasm(int argc, char** argv)
 		goto cleanup_encoder;
 	}
 
-	hx_binary binary;
-	encoder_encode(&program, &binary, &cli);
+	hx_binary binary = {0};
+	encoder_encode(&program, &binary, out);
 
 	for (u32 i = 0; i < binary.size; i++) {
-		fwrite(&binary.data[i], sizeof(u8), 1, cli.output_file);
+		fwrite(&binary.data[i], sizeof(u8), 1, out);
 	}
 
 	/* Free encoder */
@@ -213,9 +162,10 @@ int hasm(int argc, char** argv)
 		status = 1;
 		goto cleanup_encoder;
 	}
+		goto free_cli;
 
 cleanup_encoder:
-	fclose(cli.output_file);
+	fclose(out);
 
 cleanup_program:
 	if (!program_free(&program)) {
@@ -225,14 +175,10 @@ cleanup_program:
 			status = 1;
 	}
 
-cleanup_tokens:
-	free(tokens);
-
 cleanup_source:
 	free(source);
-
-cleanup_cli:
-	cl_parse_free(&cli);
+free_cli:
+	cli_result_free(&result);
 
 	return status;
 }

@@ -1,5 +1,4 @@
 #include "decoder/decoder.h"
-#include "isa/instruction.h"
 #include "isa/mnemonic.h"
 #include "types.h"
 #include <stdio.h>
@@ -18,26 +17,26 @@ static void decode_r_type(u32 instruction)
 	if (opcode == 0x77) {
 		switch (funct7) {
 			case 0x00:
-				printf("%s, r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "eq");
+				printf("%s r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "eq");
 				break;
 			case 0x01:
-				printf("%s, r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "ne");
+				printf("%s r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "ne");
 				break;
 			case 0x02:
-				printf("%s, r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "lt");
+				printf("%s r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "lt");
 				break;
 			case 0x03:
-				printf("%s, r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "ge");
+				printf("%s r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "ge");
 				break;
 			case 0x04:
-				printf("%s, r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "ltu");
+				printf("%s r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "ltu");
 				break;
 			case 0x05:
-				printf("%s, r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "geu");
+				printf("%s r%u, r%u, r%u, %s\n", mnemonic_name(mnemonic), rd, rs1, rs2, "geu");
 				break;
 		}
 	} else {
-		printf("%s, r%u, r%u, r%u\n", mnemonic_name(mnemonic), rd, rs1, rs2);
+		printf("%s r%u, r%u, r%u\n", mnemonic_name(mnemonic), rd, rs1, rs2);
 	}
 }
 
@@ -110,15 +109,19 @@ static void decode_m_type(u32 instruction)
 			break;
 		case 0x2:
 			printf("%s r%u, %d, %d\n", "movn", rd, imm, shift);
+		case 0x3:
+			printf("%s r%u, %d\n", "mov", rd, imm);
 			break;
 	}
 
 }
 
-b8 decoder_decode(hx_cli *cli)
+b8 decoded_disassemble(const char *filename)
 {
 	u32 instruction;
-	while (fread(&instruction, sizeof(u32), 1, cli->input_file) == 1) {
+
+	FILE *file = fopen(filename, "rb");
+	while (fread(&instruction, sizeof(u32), 1, file) == 1) {
 		u8 opcode = instruction & 0x7F;
 
 		switch (opcode) {

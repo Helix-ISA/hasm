@@ -3,6 +3,7 @@
 
 #include "cli/cl_parser.h"
 
-b8 decoder_decode(hx_cli *cli);
+/* TODO: Make output depend of if output file is specified */
+b8 decoded_disassemble(const char *filename);
 
 #endif

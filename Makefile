@@ -4,6 +4,7 @@ CC := clang
 
 CFLAGS := -Wall -Wextra -Werror -Wpedantic -g -O0
 DFLAGS := -MMD -MP
+LIBS := -lflagparser
 
 INCS := -Iinclude/
 
@@ -18,7 +19,7 @@ all: build
 build: dirs $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) -o bin/$@ $(OBJS)
+	$(CC) -o bin/$@ $(OBJS) $(LIBS)
 
 bin-int/%.o: src/%.c
 	@mkdir -p $(dir $@)

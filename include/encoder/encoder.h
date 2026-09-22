@@ -15,6 +15,6 @@ b8 encoder_free(hx_program *program);
 
 b8 binary_free(hx_binary *binary);
 
-b8 encoder_encode(const hx_program *program, hx_binary *binary, hx_cli *cli);
+b8 encoder_encode(const hx_program *program, hx_binary *binary, FILE *output);
 
 #endif
