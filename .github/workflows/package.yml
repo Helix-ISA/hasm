@@ -23,6 +23,16 @@ jobs:
       - name: Checkout hasm
         uses: actions/checkout@v6
 
+      - name: Configure nucleus repository
+        run: |
+          cat >> /etc/pacman.conf << 'EOF'
+
+          [nucleus]
+          SigLevel = Optional
+          Server = https://helix-isa.github.io/nucleus
+
+          pacman -Sy --noconfirm
+
       - name: Build package
         run: |
           useradd -m builder
