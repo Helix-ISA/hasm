@@ -50,8 +50,6 @@ make clean
 
 ## Usage
 
-The basic invocation for HASM is:
-
 ``` bash
 Usage: ./bin/hasm [OPTIONS] [ARGS...]
 
@@ -65,8 +63,6 @@ Options:
   --parser-debug          Enable parser debug output
   --symbol-debug          Enable symbol debug output
 ```
-
-This will produce ```out```
 
 ## Debugging
 
