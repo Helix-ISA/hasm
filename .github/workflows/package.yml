@@ -30,6 +30,7 @@ jobs:
           [nucleus]
           SigLevel = Optional
           Server = https://helix-isa.github.io/nucleus
+          EOF
 
           pacman -Sy --noconfirm
 
