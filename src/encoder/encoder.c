@@ -1,5 +1,4 @@
 #include "encoder/encoder.h"
-#include "cli/cl_parser.h"
 #include "encoder/symbol.h"
 #include "isa/instruction.h"
 #include "isa/label.h"
@@ -405,7 +404,7 @@ static void symbol_debug(const hx_symbol_table *sym_table, b8 pic)
 	printf("\n");
 }*/
 
-b8 encoder_encode(const hx_program *program, hx_binary *binary, FILE *output)
+b8 encoder_encode(const hx_program *program, hx_binary *binary)
 {
 	hx_symbol_table sym_table;
 	symbol_table_init(&sym_table);
@@ -424,8 +423,6 @@ b8 encoder_encode(const hx_program *program, hx_binary *binary, FILE *output)
 				break;
 		}
 	}
-
-	(void)output;
 
 	return success;
 }

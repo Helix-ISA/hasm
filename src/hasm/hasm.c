@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <flagparser/flagparser.h>
 
-#include "cli/cli_parser.h"
 #include "encoder/encoder.h"
 #include "decoder/decoder.h"
 #include "isa/program.h"
@@ -17,17 +17,17 @@ static void error(char *message) {
 	fprintf(stderr, "hasm: %s\n", message);
 }
 
-static const cli_arg args[] = {
+static const fp_flag flags[] = {
 	{
 		.sname = "v",
 		.lname = "verbose",
-		.arg_type = CLI_ARG_NONE,
+		.flag_type = FLAG_ARG_NONE,
 		.description = "Enable verbose mode"
 	},
 	{
 		.sname = "o",
 		.lname = "output",
-		.arg_type = CLI_ARG_REQUIRED,
+		.flag_type = FLAG_ARG_REQUIRED,
 		.value_type = "FILE",
 		.default_value = "out",
 		.description = "Specifies output file",
@@ -35,23 +35,23 @@ static const cli_arg args[] = {
 	{
 		.sname = "d",
 		.lname = "disassemble",
-		.arg_type = CLI_ARG_REQUIRED,
+		.flag_type = FLAG_ARG_REQUIRED,
 		.value_type = "FILE",
 		.description = "Specify file to disassemble",
 	},
 	{
 		.lname = "lexer-debug",
-		.arg_type = CLI_ARG_NONE,
+		.flag_type = FLAG_ARG_NONE,
 		.description = "Enable lexer debug output",
 	},
 	{
 		.lname = "parser-debug",
-		.arg_type = CLI_ARG_NONE,
+		.flag_type = FLAG_ARG_NONE,
 		.description = "Enable parser debug output",
 	},
 	{
 		.lname = "symbol-debug",
-		.arg_type = CLI_ARG_NONE,
+		.flag_type = FLAG_ARG_NONE,
 		.description = "Enable symbol debug output",
 	},
 };
@@ -60,23 +60,23 @@ int hasm(int argc, char **argv)
 {
 	u8 status = 0;
 
-	const cli_config config = {
+	const fp_config config = {
 		.program_name = argv[0],
 		.version = "0.1.0",
 		.description = "Helix assembler",
-		.args = args,
-		.arg_count = sizeof(args) / sizeof(args[0])
+		.flags = flags,
+		.flag_count = sizeof(flags) / sizeof(flags[0])
 	};
 
-	cli_result result;
-	if (!cli_parse(&config, argc, argv, &result)) {
-		cli_print_error(&config, result.error);
+	fp_result result;
+	if (!fp_flag_parse(&config, argc, argv, &result)) {
+		fp_print_error(&config, result.error);
 		status = 1;
 		goto free_cli;
 	}
 
 	/* Disassemble */
-	const cli_parsed_arg *disassemble = cli_get_arg(&result, "disassemble");
+	const fp_parsed_flag *disassemble = fp_get_flag(&result, "disassemble");
 	if (disassemble) {
 		decoded_disassemble(disassemble->value);
 		goto free_cli;
@@ -131,7 +131,7 @@ int hasm(int argc, char **argv)
 	}
 
 	/* Parse complete open write file */
-	const cli_parsed_arg *output = cli_get_arg(&result, "output");
+	const fp_parsed_flag *output = fp_get_flag(&result, "output");
 	FILE *out;
 	if (output) {
 		out = fopen(output->value, "wb");
@@ -150,7 +150,7 @@ int hasm(int argc, char **argv)
 	}
 
 	hx_binary binary = {0};
-	encoder_encode(&program, &binary, out);
+	encoder_encode(&program, &binary);
 
 	for (u32 i = 0; i < binary.size; i++) {
 		fwrite(&binary.data[i], sizeof(u8), 1, out);
@@ -178,7 +178,7 @@ cleanup_program:
 cleanup_source:
 	free(source);
 free_cli:
-	cli_result_free(&result);
+	fp_result_free(&result);
 
 	return status;
 }

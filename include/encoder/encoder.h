@@ -1,7 +1,6 @@
 #ifndef HX_ENCODER_H
 #define HX_ENCODER_H
 
-#include "cli/cl_parser.h"
 #include "isa/program.h"
 
 typedef struct {
@@ -15,6 +14,6 @@ b8 encoder_free(hx_program *program);
 
 b8 binary_free(hx_binary *binary);
 
-b8 encoder_encode(const hx_program *program, hx_binary *binary, FILE *output);
+b8 encoder_encode(const hx_program *program, hx_binary *binary);
 
 #endif
