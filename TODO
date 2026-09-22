@@ -1,9 +1,1 @@
-features:
-* M-type format encoding
-
-bugs:
-* don't open output file until after parser is done
-
-planned:
-* emulator is next
-* disassembler option in hasm or disassembler program
+* Rewrite all the headers to be uniform
