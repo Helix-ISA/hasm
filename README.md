@@ -2,11 +2,12 @@
 
 HASM is an assembler for the Helix ISA.
 
-It translates Helix assembly files (hxs) into machine code that can be
+It translates Helix assembly files (```.hxs```) into machine code that can be
 used by the Helix toolchain, processors, and emulators.
 
 > [!WARNING]
-> HASM is still in development and will have several patches weekly
+> HASM is still in development and may receive several patches each week.
+> Features and behavior may change as the Helix ISA evolves.
 
 ## Features
 * Helix assembly lexer and parser
@@ -14,14 +15,13 @@ used by the Helix toolchain, processors, and emulators.
 * Lexer debugging
 * Parser debugging
 * Symbol debugging
-* Strict compilation with Clang warnings treated as errors
-* No external dependencies
 
 ## Building
 
 ### Requirements
 * A C compiler with Clang support
 * GNU Make
+* Nucleus repository or manually install ```flagparser```
 
 HASM is currently built using ```clang``` and the provided ```Makefile```.
 
@@ -53,10 +53,20 @@ make clean
 The basic invocation for HASM is:
 
 ``` bash
-./bin/hasm <source.hxs>
+Usage: ./bin/hasm [OPTIONS] [ARGS...]
+
+Helix assembler (0.1.0)
+
+Options:
+  -v, --verbose           Enable verbose mode
+  -o, --output FILE       Specifies output file [default: out]
+  -d, --disassemble FILE  Specify file to disassemble
+  --lexer-debug           Enable lexer debug output
+  --parser-debug          Enable parser debug output
+  --symbol-debug          Enable symbol debug output
 ```
 
-This will produce out.hxo
+This will produce ```out```
 
 ## Debugging
 
@@ -64,7 +74,7 @@ HASM includes several debugging modes that are useful when developing the
 assembler and the Helix ISA itself
 
 > [!WARNING]
-> Debugging will be removed from release builds
+> Debugging is currently disabled
 
 ## Model
 
