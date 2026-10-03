@@ -1,10 +1,10 @@
 pkgname=hasm
-pkgver=0.1.0
-pkgrel=8
+pkgver=0.1.1
+pkgrel=0
 pkgdesc="Helix Assembler"
 arch=('x86_64')
 license=('MIT')
-depends=('glibc' 'flagparser')
+depends=('glibc' 'flagparser' 'isac')
 makedepends=('clang' 'make' 'git')
 
 source=("https://github.com/Helix-ISA/hasm/archive/refs/heads/master.tar.gz")

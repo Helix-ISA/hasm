@@ -33,7 +33,7 @@ jobs:
           EOF
 
           pacman -Sy --noconfirm
-          pacman -S --noconfirm flagparser
+          pacman -S --noconfirm flagparser isac
 
       - name: Build package
         run: |

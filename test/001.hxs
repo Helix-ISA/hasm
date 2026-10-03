@@ -1,3 +1,4 @@
-mov r1, 16
-add r3, r5, r7
-wfi
+test:
+	mov h1, h5
+	mov h3, 3
+	addi h1, h0, 3

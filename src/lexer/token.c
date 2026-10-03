@@ -6,10 +6,10 @@ b8 token_equals(const hx_token *token, const char *name)
 {
 	u32 length = strlen(name);
 
-	if (token->text_length != length)
+	if (token->lexme_length != length)
 		return failure;
 
-	return memcmp(token->text, name, token->text_length) == 0;
+	return memcmp(token->lexme, name, token->lexme_length) == 0;
 }
 
 const char *token_type_name(hx_token_type type)

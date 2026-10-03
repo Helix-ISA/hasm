@@ -4,7 +4,7 @@ CC := clang
 
 CFLAGS := -Wall -Wextra -Werror -Wpedantic -g -O0
 DFLAGS := -MMD -MP
-LIBS := -lflagparser
+LIBS := -lflagparser -lisac
 
 INCS := -Iinclude/
 

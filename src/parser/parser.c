@@ -1,38 +1,34 @@
 #include "parser/parser.h"
-
-#include "isa/instruction.h"
-#include "isa/label.h"
-#include "isa/mnemonic.h"
-#include "isa/node.h"
-#include "isa/operand.h"
-#include "isa/program.h"
-#include "isa/register.h"
+#include "lexer/lexer.h"
 #include "lexer/token.h"
+#include "parser/ast.h"
 #include "types.h"
-
+#include <ctype.h>
+#include <isac/mnemonic.h>
+#include <isac/operand.h>
 #include <stdio.h>
+
+#include <isac/instruction.h>
 #include <stdlib.h>
 #include <string.h>
 
-static hx_token *parser_current(hx_parser *parser)
-{
-	if (parser->position >= parser->token_count)
-		return NULL;
-
-	return &parser->tokens[parser->position];
-}
-
 static void parser_advance(hx_parser *parser)
 {
-	if (parser->position < parser->token_count)
-		parser->position++;
+	parser->previous = parser->current;
+	parser->current = parser->peek;
+	parser->peek = lexer_next(parser->lexer);
+
+	parser->has_current = 1;
 }
 
-static u32 parser_check(hx_parser *parser, hx_token_type type)
+static inline b8 parser_check(hx_parser *parser, hx_token_type type)
 {
-	hx_token *token = parser_current(parser);
+	return parser->current.type == type;
+}
 
-	return token != NULL && token->type == type;
+static inline b8 parser_peek(hx_parser *parser, hx_token_type type)
+{
+	return parser->peek.type == type;
 }
 
 static b8 parser_match(hx_parser *parser, hx_token_type type)
@@ -41,363 +37,368 @@ static b8 parser_match(hx_parser *parser, hx_token_type type)
 		return false;
 
 	parser_advance(parser);
-
 	return true;
 }
 
 static void parser_error(hx_parser *parser, const char *message)
 {
-	hx_token *token = parser_current(parser);
+	fprintf(
+			stderr, 
+			"error:%u:%u: %s\n",
+			parser->current.location.line,
+			parser->current.location.column,
+			message
+	);
 
-	if (token == NULL) {
-		fprintf(stderr, "parser error: %s\n", message);
+	parser->had_error = true;
+}
+
+static b8 parser_expect(hx_parser *parser, hx_token_type type, const char *message)
+{
+	if (!parser_match(parser, type)) {
+		parser_error(parser, message);
+		return false;
+	}
+
+	return true;
+}
+
+static u8 lex_register(const char *lex, u32 lex_length)
+{
+	if (lex_length > 3)
+		return -1;
+
+	if (lex[0] != 'h')
+		return -1;
+
+	lex++;
+
+	char buffer[2];
+	strncpy(buffer, lex, 2);
+
+	u8 number = atoi(buffer);
+
+	return number;
+}
+
+static u64 lex_number(const char *lex, u32 lex_length)
+{
+	u64 value = 0;
+	u32 i = 0;
+	u32 base = 10;
+
+	if (lex_length >= 2 &&
+			lex[0] == '0' &&
+			(lex[1] == 'x' || lex[1] == 'X')) {
+		base = 16;
+		i = 2;
+	}
+
+	for (; i < lex_length; i++) {
+		char c = lex[i];
+		u32 digit;
+
+		if (c >= '0' && c <= '9')
+			digit = (u32)(c - '0');
+		else if (c >= 'a' && c <= 'f')
+			digit = (u32)(c - 'a') + 10;
+		else if (c >= 'A' && c <= 'F')
+			digit = (u32)(c - 'A') + 10;
+		else
+			break;
+
+		if (digit >= base)
+			break;
+
+		value = value * base + digit;
+	}
+
+	return value;
+}
+
+/**
+ * out_offset can return NULL
+ */
+static b8 parser_parse_memory(hx_parser *parser, hx_operand **out_reg, hx_operand **out_offset)
+{
+	if (parser_expect(parser, TOKEN_LBRACKET, "expected '['"))
+		return false;
+
+	if (parser_expect(parser, TOKEN_IDENTIFIER, "expected register"))
+		return false;
+
+	*out_reg = operand_create_register(lex_register(parser->current.lexme, parser->current.lexme_length));
+
+	parser_advance(parser);
+
+	/* No offset */
+	if (!parser_check(parser, TOKEN_NUMBER)) {
+		parser_expect(parser, TOKEN_RBRACKET, "expected ']'");
+		return true;
+	}
+
+	if (parser_expect(parser, TOKEN_NUMBER, "expected offset"))
+		return false;
+
+	*out_offset = operand_create_immediate(lex_number(parser->current.lexme, parser->current.lexme_length));
+
+	if (parser_expect(parser, TOKEN_RBRACKET, "expected ']'"))
+		return false;
+
+	return true;
+}
+
+static hx_operand *parser_parse_operand(hx_parser *parser)
+{
+	switch (parser->current.type) {
+		case TOKEN_IDENTIFIER: {
+			if (parser->current.lexme[0] == 'h' && isdigit(parser->current.lexme[1])) {
+				hx_operand *reg = operand_create_register(lex_register(parser->current.lexme, parser->current.lexme_length));
+				parser_advance(parser);
+				return reg;
+			} else {
+				hx_operand *symbol = operand_create_symbol(parser->current.lexme, parser->current.lexme_length);
+				parser_advance(parser);
+				return symbol;
+			}
+		}
+
+		case TOKEN_NUMBER: {
+			hx_operand *imm = operand_create_immediate(lex_number(parser->current.lexme, parser->current.lexme_length));
+			parser_advance(parser);
+			return imm;
+		}
+
+		case TOKEN_LBRACKET: {
+			parser_advance(parser);
+			if (!parser_check(parser, TOKEN_IDENTIFIER)) {
+				parser_error(parser, "expected register");
+				parser_advance(parser);
+				return NULL;
+			}
+	
+			/* Copy reg operand */
+			const char *reg = parser->current.lexme;
+			u32 reg_length = parser->current.lexme_length;
+			parser_advance(parser);
+
+			if (!parser_check(parser, TOKEN_NUMBER)) {
+				parser_error(parser, "expected offset");
+				parser_advance(parser);
+				return NULL;
+			}
+
+			hx_operand *mem = operand_create_memory(lex_register(reg, reg_length), lex_number(parser->current.lexme, parser->current.lexme_length));
+
+			parser_advance(parser);
+
+			return mem;
+		}
+
+		default:
+			return NULL;
+
+	}
+
+	return NULL;
+}
+
+static void parser_parse_instruction(hx_parser *parser)
+{
+	if (!parser_check(parser, TOKEN_IDENTIFIER)) {
+		parser_error(parser, "expected instruction");
 		return;
 	}
 
-	fprintf(
-		stderr,
-		"parser error at %u:%u: %s\n",
-		token->line,
-		token->column,
-		message
-	);
+	hx_token mnemonic_token = parser->current;
+	hx_mnemonic mnemonic = get_mnemonic(mnemonic_token.lexme, mnemonic_token.lexme_length);
 
-}
-
-static b8 parse_width(hx_parser *parser, hx_width *width)
-{
-	if (!parser_match(parser, TOKEN_DOT))
-		return false;
-
-	hx_token *token = parser_current(parser);
-
-	if (token == NULL || token->type != TOKEN_IDENTIFIER)
-		return false;
-
-	if (token_equals(token, "b"))
-		*width = HX_WIDTH_8;
-	else if (token_equals(token, "w"))
-		*width = HX_WIDTH_16;
-	else if (token_equals(token, "d"))
-		*width = HX_WIDTH_32;
-	else if (token_equals(token, "q"))
-		*width = HX_WIDTH_64;
-	else
-		return false;
-
+	u32 address = parser->instruction_address;
+	parser->instruction_address += 4;
 	parser_advance(parser);
 
-	return true;
-}
+	hx_operand *operands[3];
+	u32 operand_count = 0;
 
-static b8 parse_register(hx_token token, u32 *reg)
-{
-	if (token.type != TOKEN_IDENTIFIER)
-		return false;
+	for (;;) {
+		/* Memory operand */
+		if (parser_check(parser, TOKEN_LBRACKET)) {
+			hx_operand *reg;
+			hx_operand *offset;
 
-	if (token.text_length < 2)
-		return 0;
+			if (!parser_parse_memory(parser, &reg, &offset))
+				return;
 
-	if (token.text[0] != 'r')
-		return false;
+			operands[operand_count++] = reg;
+			if (offset != NULL)
+				operands[operand_count++] = offset;
 
-	u32 value = 0;
+		}
+		/* Symbol or reg */
+		else if (parser_check(parser, TOKEN_IDENTIFIER) || parser_check(parser, TOKEN_NUMBER)) {
 
-	for (u32 i = 1; i < token.text_length; i++) {
-		char c = token.text[i];
+			/* Pseudo */
+			if (mnemonic == HX_JMP) {
+				operands[operand_count++] = operand_create_register(0);
+			}
+			if (mnemonic == HX_MOV) {
+				if (operand_count == 1 && parser_check(parser, TOKEN_NUMBER)) {
+					operands[operand_count++] = operand_create_register(0);
+					operands[operand_count++] = operand_create_immediate(lex_number(parser->current.lexme, parser->current.lexme_length));
+					parser_advance(parser);
+					break;
+				}
+			}
 
-		if (c < '0' || c > '9')
-			return false;
+			hx_operand *operand = parser_parse_operand(parser);
 
-		value = value * 10 + (u32)(c - '0');
+			if (operand == NULL)
+				return;
 
-		if (value > 31)
-			return false;
-	}
-
-	*reg = value;
-
-	return true;
-}
-
-static b8 parse_integer(hx_token token, s64 *value)
-{
-	char buffer[64];
-
-	if (token.text_length >= sizeof(buffer))
-		return false;
-
-	memcpy(buffer, token.text, token.text_length);
-
-	buffer[token.text_length] = '\0';
-
-	char *end;
-
-	s64 result = strtoll(buffer, &end, 0);
-
-	if (*end != '\0')
-		return false;
-
-	*value = (s64)result;
-
-	return true;
-}
-
-static b8 parse_memory_operand(hx_parser *parser, hx_operand *operand)
-{
-	if (!parser_match(parser, TOKEN_LBRACKET))
-		return false;
-
-	hx_token *token = parser_current(parser);
-
-	if (token == NULL) {
-		parser_error(parser, "expected register after '['");
-		return false;
-	}
-
-	u32 reg;
-
-	if (!parse_register(*token, &reg)) {
-		parser_error(parser, "expected register in memory operand");
-		return false;
-	}
-
-	parser_advance(parser);
-
-	s64 offset = 0;
-
-	if (parser_match(parser, TOKEN_PLUS)) {
-		token = parser_current(parser);
-
-		if (token == NULL || token->type != TOKEN_NUMBER) {
-			parser_error(parser, "expected number after '+'");
-			return false;
+			operands[operand_count++] = operand;
+			if (operand_count == 2 && mnemonic == HX_MOV) {
+				operands[operand_count++] = operand_create_immediate(0);
+			}
+		} else {
+			/* Pseudo */
+			if (mnemonic == HX_NOP) {
+				operands[operand_count++] = operand_create_register(0);
+				operands[operand_count++] = operand_create_register(0);
+				operands[operand_count++] = operand_create_immediate(0);
+			}
+			break;
 		}
 
-		if (!parse_integer(*token, &offset)) {
-			parser_error(parser, "invalid memory offset");
-			return false;
+		if (!parser_match(parser, TOKEN_COMMA))
+			break;
+
+		if (operand_count > 3) {
+			parser_error(parser, "too many operands");
+			return;
 		}
-
-		parser_advance(parser);
-	} else if (parser_match(parser, TOKEN_MINUS)) {
-		token = parser_current(parser);
-
-		if (token == NULL || token->type != TOKEN_NUMBER) {
-			parser_error(parser, "expected number after '-'");
-			return false;
-		}
-
-		if (!parse_integer(*token, &offset)) {
-			parser_error(parser, "invalid memory offset");
-			return false;
-		}
-
-		offset = -offset;
-
-		parser_advance(parser);
 	}
 
-	if (!parser_match(parser, TOKEN_RBRACKET)) {
-		parser_error(parser, "expected ']'");
-		return false;
-	}
+	hx_instruction *instruction;
 
-	operand->type = HX_OPERAND_MEMORY;
-	operand->value.memory.reg = reg;
-	operand->value.memory.offset = offset;
+	switch (operand_count) {
+		case 0:
+			instruction = instruction_create(
+					mnemonic,
+					address,
+					0
+			);
+			break;
+		case 1:
+			instruction = instruction_create(
+					mnemonic,
+					address,
+					1,
+					operands[0]
+			);
+			break;
+		case 2:
+			instruction = instruction_create(
+					mnemonic,
+					address,
+					2,
+					operands[0],
+					operands[1]
+			);
+			break;
+		case 3:
+			instruction = instruction_create(
+					mnemonic,
+					address,
+					3,
+					operands[0],
+					operands[1],
+					operands[2]
+			);
+			break;
 
-	return true;
-}
-
-static b8 parse_operand(hx_parser *parser, hx_operand *operand)
-{
-	hx_token *token = parser_current(parser);
-
-	u32 reg;
-
-	if (parse_register(*token, &reg)) {
-		operand->type = HX_OPERAND_REGISTER;
-		operand->value.reg = reg;
-
-		parser_advance(parser);
-		return true;
-	}
-
-	if (token->type == TOKEN_NUMBER) {
-		s64 value;
-
-		if (!parse_integer(*token, &value))
-			return false;
-
-		operand->type = HX_OPERAND_IMMEDIATE;
-		operand->value.imm = value;
-
-		parser_advance(parser);
-		return true;
-	}
-
-	if (token->type == TOKEN_IDENTIFIER) {
-		operand->type = HX_OPERAND_LABEL;
-		operand->value.label.text = token->text;
-		operand->value.label.length = token->text_length;
-
-		parser_advance(parser);
-		return true;
-	}
-
-	if (token->type == TOKEN_LBRACKET) {
-		return parse_memory_operand(parser, operand);
-	}
-
-	return false;
-}
-
-static b8 parser_is_label(hx_parser *parser)
-{
-	if (parser->position + 1 >= parser->token_count)
-		return false;
-
-	hx_token *current = &parser->tokens[parser->position];
-	hx_token *next = &parser->tokens[parser->position + 1];
-
-	return current->type == TOKEN_IDENTIFIER && next->type == TOKEN_COLON;
-}
-
-static b8 parse_label(hx_parser *parser, hx_program *program)
-{
-	hx_token *token = parser_current(parser);
-
-	if (token == NULL)
-		return false;
-
-	hx_label label;
-
-	label.name = token->text;
-	label.name_length = token->text_length;
-
-	parser_advance(parser);
-
-	if (!parser_match(parser, TOKEN_COLON)) {
-		parser_error(parser, "expected ':' after label");
-		return false;
+		default:
+			parser_error(parser, "too many operands");
+			return;
 	}
 
 	hx_node node;
-
-	node.type = HX_NODE_LABEL;
-	node.value.label = label;
-
-	if (!program_add_node(program, node)) {
-		parser_error(parser, "failed to add label");
-		return false;
-	}
-
-	parser_match(parser, TOKEN_NEWLINE);
-
-	return true;
-}
-
-static b8 parse_instruction(hx_parser *parser, hx_program *program)
-{
-	hx_token *token = parser_current(parser);
-
-	if (token == NULL || token->type != TOKEN_IDENTIFIER) {
-		parser_error(parser, "expected instruction");
-		return false;
-	}
-
-	hx_mnemonic mnemonic;
-
-	if (!mnemonic_from_token(*token, &mnemonic)) {
-		parser_error(parser, "unknown instruction");
-		return false;
-	}
-
-	parser_advance(parser);
-
-	hx_width width = HX_WIDTH_64;
-
-	if (parser_check(parser, TOKEN_DOT)) {
-		if (!parse_width(parser, &width)) {
-			parser_error(parser, "invalid operand width");
-			return false;
-		}
-	}
-
-	hx_instruction instruction;
-
-	instruction.mnemonic = mnemonic;
-	instruction.width = width;
-	instruction.operand_count = 0;
-	instruction.line = token->line;
-
-	if (!parser_check(parser, TOKEN_NEWLINE) && !parser_check(parser, TOKEN_EOF)) {
-		for (;;) {
-			if (instruction.operand_count >= 3 && !large_operand_instruction(instruction.mnemonic)) {
-				parser_error(parser, "too many operands");
-				return false;
-			}
-
-			if (!parse_operand(parser, &instruction.operands[instruction.operand_count])) {
-				parser_error(parser, "invalid operand");
-				return false;
-			}
-
-			instruction.operand_count ++;
-
-			if (!parser_match(parser, TOKEN_COMMA))
-				break;
-		}
-	}
-
-	if (!parser_check(parser, TOKEN_NEWLINE) &&
-			!parser_check(parser, TOKEN_EOF)) {
-		parser_error(parser, "expected newline after instruction");
-		return false;
-	}
-
-	parser_match(parser, TOKEN_NEWLINE);
-
-	hx_node node;
-
 	node.type = HX_NODE_INSTRUCTION;
 	node.value.instruction = instruction;
 
-	if (!program_add_node(program, node)) {
-		parser_error(parser, "failed to add instruction");
-		return false;
-	}
-
-	return true;
+	ast_add_node(parser->ast, node);
 }
 
-b8 parser_init(hx_parser *parser, hx_token *tokens, u32 token_count)
+static void parser_parse_line(hx_parser *parser)
 {
-	parser->tokens = tokens;
-	parser->token_count = token_count;
+	/* Labels or Instructions */
+	if (parser_check(parser, TOKEN_IDENTIFIER)) {
+		/* Label */
+		if (parser_peek(parser, TOKEN_COLON)) {
+			hx_node node;
+			node.type = HX_NODE_LABEL;
+			node.value.label.name = parser->current.lexme;
+			node.value.label.name_length = parser->current.lexme_length;
+			node.value.label.address = parser->current.location.line << 2;
+			ast_add_node(parser->ast, node);
 
-	parser->position = 0;
+			parser_advance(parser); /* Identifier */
+			parser_advance(parser); /* Colon */
 
-	return success;
-}
 
-b8 parser_parse(hx_parser *parser, hx_program *program)
-{
-	while (!parser_check(parser, TOKEN_EOF)) {
-		if (parser_match(parser, TOKEN_NEWLINE))
-			continue;
-
-		if (parser_is_label(parser)) {
-			if (!parse_label(parser, program))
-				return false;
-
-			continue;
+			/* Same line instruction */
+			if (parser_check(parser, TOKEN_IDENTIFIER))
+				parser_parse_instruction(parser);
+			
+		}
+		/* Instruction */
+		else {
+			parser_parse_instruction(parser);
 		}
 
-		if (!parse_instruction(parser, program))
-			return false;
+		parser_match(parser, TOKEN_NEWLINE);
+		return;
 	}
-	
+	/* Directives */
+	else if (parser_check(parser, TOKEN_DOT)) {
+		// TODO: Directives
+	}
+
+	parser_error(parser, "expected label, instruction, or directive");
+	parser_advance(parser);
+}
+
+b8 parser_init(hx_parser *parser, hx_lexer *lexer, hx_ast *ast)
+{
+	parser->lexer = lexer;
+	parser->ast = ast;
+
+	parser->current = (hx_token){0};
+	parser->previous = (hx_token){0};
+	parser->peek = (hx_token){0};
+
+	parser->has_current = 0;
+	parser->had_error = 0;
+	parser->instruction_address = 0;
+
+	parser_advance(parser);
+	parser_advance(parser);
+
 	return success;
+}
+
+b8 parser_free(hx_parser *parser)
+{
+	parser->lexer = NULL;
+	parser->ast = NULL;
+
+	return success;
+}
+
+b8 parser_parse(hx_parser *parser)
+{
+	while (parser->current.type != TOKEN_EOF) {
+		parser_parse_line(parser);
+	}
+
+	return parser->had_error ? failure : success;
 }

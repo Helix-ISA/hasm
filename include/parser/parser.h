@@ -1,18 +1,28 @@
 #ifndef HX_PARSER_H
 #define HX_PARSER_H
 
-#include "isa/program.h"
+#include "lexer/lexer.h"
 #include "lexer/token.h"
+#include "parser/ast.h"
 #include "types.h"
 
 typedef struct {
-	hx_token *tokens;
-	u32 token_count;
+	hx_lexer *lexer;
 
-	u32 position;
+	hx_token peek;
+	hx_token current;
+	hx_token previous;
+
+	hx_ast *ast;
+
+	b8 has_current;
+	b8 had_error;
+	u64 instruction_address;
 } hx_parser;
 
-b8 parser_init(hx_parser *parser, hx_token *tokens, u32 token_count);
-b8 parser_parse(hx_parser *parser, hx_program *program);
+b8 parser_init(hx_parser *parser, hx_lexer *lexer, hx_ast *ast);
+b8 parser_free(hx_parser *parser);
+
+b8 parser_parse(hx_parser *parser);
 
 #endif

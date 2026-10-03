@@ -3,6 +3,7 @@
 
 #include "lexer/token.h"
 #include "types.h"
+
 typedef struct {
 	const char *source;
 	u32 source_length;
@@ -13,7 +14,8 @@ typedef struct {
 } hx_lexer;
 
 b8 lexer_init(hx_lexer *lexer, const char *source, u32 source_length);
+b8 lexer_free(hx_lexer *lexer);
 
-hx_token *lexer_tokenize(const char *source, u32 source_length, u32 *token_count);
+hx_token lexer_next(hx_lexer *lexer);
 
 #endif

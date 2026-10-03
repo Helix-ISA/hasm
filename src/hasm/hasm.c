@@ -1,17 +1,15 @@
 #include "hasm/hasm.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <flagparser/flagparser.h>
-
-#include "encoder/encoder.h"
-#include "decoder/decoder.h"
-#include "isa/program.h"
+#include "codegen/codegen.h"
 #include "lexer/lexer.h"
 #include "lexer/token.h"
-#include "io/file.h"
+#include "parser/ast.h"
 #include "parser/parser.h"
-#include "types.h"
+
+#include <flagparser/flagparser.h>
+#include <isac/instruction.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 
 static void error(char *message) {
 	fprintf(stderr, "hasm: %s\n", message);
@@ -62,6 +60,42 @@ static const fp_flag flags[] = {
 	},
 };
 
+static b8 extract_source(FILE *file, char **source, u32 *source_length)
+{
+	if (fseek(file, 0, SEEK_END) != 0) {
+		perror("fseek");
+		return failure;
+	}
+
+	long file_size = ftell(file);
+
+	if (file_size < 0) {
+		perror("ftell");
+		return failure;
+	}
+
+	rewind(file);
+
+	char *out = malloc((u32)file_size + 1);
+	if (out == NULL) {
+		fprintf(stderr, "out of memory\n");
+		return failure;
+	}
+
+	u32 out_length = fread(out, 1, (u32)file_size, file);
+	if (out_length != (u32)file_size) {
+		fprintf(stderr, "failed to read file\n");
+		return failure;
+	}
+
+	out[out_length] = '\0';
+
+	*source = out;
+	*source_length = out_length;
+
+	return success;
+}
+
 int hasm(int argc, char **argv)
 {
 	u8 status = 0;
@@ -79,13 +113,11 @@ int hasm(int argc, char **argv)
 	FILE *in = NULL;
 	FILE *out = NULL;
 	char *source = NULL;
-	hx_token *tokens = NULL;
-
-	hx_parser parser;
-	hx_program program;
-
-	b8 program_initialized = false;
-	b8 encoder_initialized = false;
+	u32 source_length = 0;
+	b8 lexer_success = false;
+	b8 parser_success = false;
+	b8 ast_success = false;
+	b8 codegen_success = false;
 
 	/* Pares flags */
 	if (!fp_flag_parse(&config, argc, argv, &result)) {
@@ -101,13 +133,6 @@ int hasm(int argc, char **argv)
 		goto cleanup;
 	}
 	
-	/* Disassemble */
-	const fp_parsed_flag *disassemble = fp_get_flag(&result, "disassemble");
-	if (disassemble) {
-		decoded_disassemble(disassemble->value);
-		goto cleanup;
-	}
-
 	/* Assemble */
 	if (result.positions.count < 1) {
 		error("expected input files");
@@ -125,14 +150,8 @@ int hasm(int argc, char **argv)
 		status = 1;
 		goto cleanup;
 	}
-	
-	if (result.positions.count > 0) {
-		error("currently only supports a single input file");
-		status = 1;
-		goto cleanup;
-	}
 
-	/* Output input file */
+	/*----------------------- ASSEMBLER START -----------------------*/
 	in = fopen(result.positions.values[0], "rb");
 	if (in == NULL) {
 		perror(result.positions.values[0]);
@@ -140,88 +159,92 @@ int hasm(int argc, char **argv)
 		goto cleanup;
 	}
 
-	/* Read source */
-	u32 source_length = 0;
-	source = read_file(in, &source_length);
-
-	fclose(in);
-	in = NULL;
-
-	if (source == NULL) {
+	if (!extract_source(in, &source, &source_length)) {
+		fprintf(stderr, "failed to extract source\n");
 		status = 1;
 		goto cleanup;
 	}
 
-	/* Tokenize */
-	u32 token_count = 0;
-	tokens = lexer_tokenize(source, source_length, &token_count);
-	if (tokens == NULL) {
-		error("lexer_tokenize failed");
+	hx_lexer lexer = {0};
+	if (!lexer_init(&lexer, source, source_length)) {
+		fprintf(stderr, "failed to initialize lexer\n");
+		status = 1;
+		goto cleanup;
+	}
+	lexer_success = true;
+
+	hx_ast ast = {0};
+	ast_init(&ast);
+
+	hx_parser parser = {0};
+	if (!parser_init(&parser, &lexer, &ast)) {
+		fprintf(stderr, "failed to initialize parser\n");
+		status = 1;
+		goto cleanup;
+	}
+	parser_success = true;
+
+	if (!parser_parse(&parser)) {
+		fprintf(stderr, "failed to parse\n");
+		status = 1;
+		goto cleanup;
+	}
+	ast_success = true;
+
+	if (!ast_resolve_symbols(&ast)) {
+		fprintf(stderr, "failed to resolve symbols\n");
 		status = 1;
 		goto cleanup;
 	}
 
-	/* Initialize parser */
-	parser_init(&parser, tokens, token_count);
-
-	program_init(&program);
-	program_initialized = true;
-
-	if (!parser_parse(&parser, &program)) {
+	if (!ast_optimize(&ast)) {
+		fprintf(stderr, "failed to optimize\n");
 		status = 1;
 		goto cleanup;
 	}
 
+	hx_codegen codegen = {0};
+	if (!codegen_init(&codegen, &ast)) {
+		fprintf(stderr, "failed to initialize codegen\n");
+		status = 1;
+		goto cleanup;
+	}
+	codegen_success = true;
+
+	if (!codegen_generate(&codegen)) {
+		fprintf(stderr, "failed to generate codegen\n");
+		status = 1;
+		goto cleanup;
+	}
+	
 	/* Open output file */
-	const fp_parsed_flag *output = fp_get_flag(&result, "output");
-	out = fopen(output->value, "wb");
-	if (out == NULL) {
-		perror(output->value);
+	const fp_parsed_flag *out_file_flag = fp_get_flag(&result, "output");
+	out = fopen(out_file_flag->value, "wb");
+	if (in == NULL) {
+		perror(out_file_flag->value);
 		status = 1;
 		goto cleanup;
 	}
 
-	if (!encoder_init(&program)) {
-		error("failed to initialize encoder");
+	if (!codegen_write(&codegen, out)) {
+		fprintf(stderr, "failed to write codegen\n");
 		status = 1;
 		goto cleanup;
-	}
-
-	encoder_initialized = true;
-
-	hx_binary binary = {0};
-	encoder_encode(&program, &binary);
-
-	if (binary.data == NULL && binary.size != 0) {
-		error("encoder produced invalid binary");
-		status = 1;
-		goto cleanup;
-	}
-
-	if (binary.size > 0) {
-		u32 written = fwrite(binary.data, sizeof(*binary.data), binary.size, out);
-
-		if (written != binary.size) {
-			perror("fwrite");
-			status = 1;
-			goto cleanup;
-		}
 	}
 
 cleanup:
-	if (encoder_initialized) {
-		if (!encoder_free(&program)) {
-			error("failed to free encoder");
-			status = 1;
-		}
-	}
 
-	if (program_initialized) {
-		if (!program_free(&program)) {
-			error("failed to free program");
-			status = 1;
-		}
-	}
+	if (codegen_success)
+		codegen_free(&codegen);
+
+	if (ast_success)
+		ast_free(&ast);
+
+	if (parser_success)
+		parser_free(&parser);
+
+	if (lexer_success)
+		lexer_free(&lexer);
 
 	if (out != NULL)
 		fclose(out);
@@ -229,7 +252,6 @@ cleanup:
 	if (in != NULL)
 		fclose(in);
 
-	free(tokens);
 	free(source);
 
 	fp_result_free(&result);
