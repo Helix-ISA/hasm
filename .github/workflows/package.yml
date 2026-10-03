@@ -8,6 +8,7 @@ on:
 
 jobs:
   package:
+    if: "!contains(github.event.head_commit.message, 'nopublish')"
     runs-on: ubuntu-latest
 
     container:
