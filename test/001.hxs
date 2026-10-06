@@ -1,4 +1,4 @@
 test:
-	mov h1, h5
-	mov h3, 3
+	addi h1, h5, 0
+	addi h3, h0, 3
 	addi h1, h0, 3

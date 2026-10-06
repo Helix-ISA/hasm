@@ -1,6 +1,6 @@
 pkgname=hasm
 pkgver=0.1.1
-pkgrel=0
+pkgrel=1
 pkgdesc="Helix Assembler"
 arch=('x86_64')
 license=('MIT')

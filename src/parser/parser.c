@@ -65,20 +65,19 @@ static b8 parser_expect(hx_parser *parser, hx_token_type type, const char *messa
 
 static u8 lex_register(const char *lex, u32 lex_length)
 {
-	if (lex_length > 3)
-		return -1;
+	if (lex_length < 2 || lex_length > 3 || lex[0] != 'h')
+		return 0xff;
 
-	if (lex[0] != 'h')
-		return -1;
+	u8 value = 0;
 
-	lex++;
+	for (u32 i = 1; i < lex_length; i++) {
+		if (!isdigit((unsigned char)lex[i]))
+			return 0xff;
 
-	char buffer[2];
-	strncpy(buffer, lex, 2);
+		value = value * 10 + (u8)(lex[i] - '0');
+	}
 
-	u8 number = atoi(buffer);
-
-	return number;
+	return value;
 }
 
 static u64 lex_number(const char *lex, u32 lex_length)
@@ -121,10 +120,10 @@ static u64 lex_number(const char *lex, u32 lex_length)
  */
 static b8 parser_parse_memory(hx_parser *parser, hx_operand **out_reg, hx_operand **out_offset)
 {
-	if (parser_expect(parser, TOKEN_LBRACKET, "expected '['"))
+	if (!parser_expect(parser, TOKEN_LBRACKET, "expected '['"))
 		return false;
 
-	if (parser_expect(parser, TOKEN_IDENTIFIER, "expected register"))
+	if (!parser_expect(parser, TOKEN_IDENTIFIER, "expected register"))
 		return false;
 
 	*out_reg = operand_create_register(lex_register(parser->current.lexme, parser->current.lexme_length));
@@ -137,12 +136,12 @@ static b8 parser_parse_memory(hx_parser *parser, hx_operand **out_reg, hx_operan
 		return true;
 	}
 
-	if (parser_expect(parser, TOKEN_NUMBER, "expected offset"))
+	if (!parser_expect(parser, TOKEN_NUMBER, "expected offset"))
 		return false;
 
 	*out_offset = operand_create_immediate(lex_number(parser->current.lexme, parser->current.lexme_length));
 
-	if (parser_expect(parser, TOKEN_RBRACKET, "expected ']'"))
+	if (!parser_expect(parser, TOKEN_RBRACKET, "expected ']'"))
 		return false;
 
 	return true;
@@ -331,6 +330,9 @@ static void parser_parse_instruction(hx_parser *parser)
 static void parser_parse_line(hx_parser *parser)
 {
 	/* Labels or Instructions */
+	if (parser_match(parser, TOKEN_NEWLINE))
+		return;
+
 	if (parser_check(parser, TOKEN_IDENTIFIER)) {
 		/* Label */
 		if (parser_peek(parser, TOKEN_COLON)) {

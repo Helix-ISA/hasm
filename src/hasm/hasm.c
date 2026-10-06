@@ -220,7 +220,7 @@ int hasm(int argc, char **argv)
 	/* Open output file */
 	const fp_parsed_flag *out_file_flag = fp_get_flag(&result, "output");
 	out = fopen(out_file_flag->value, "wb");
-	if (in == NULL) {
+	if (out == NULL) {
 		perror(out_file_flag->value);
 		status = 1;
 		goto cleanup;

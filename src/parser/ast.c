@@ -66,36 +66,69 @@ b8 ast_add_node(hx_ast *ast, const hx_node node)
 b8 ast_resolve_symbols(hx_ast *ast)
 {
 	b8 status = success;
-	for (u64 i = 0; i < ast->node_count; i++) {
-		if (ast->nodes[i].type == HX_NODE_LABEL) {
-			hx_symbol symbol;
-			symbol.name = ast->nodes[i].value.label.name;
-			symbol.name_length = ast->nodes[i].value.label.name_length;
-			symbol.address = ast->nodes[i].value.label.address;
 
-			symbol_table_add(ast->symbol_table, symbol);
+	/* Pass 1: collect all labels */
+	for (u64 i = 0; i < ast->node_count; i++) {
+		if (ast->nodes[i].type != HX_NODE_LABEL)
 			continue;
-		} else if (ast->nodes[i].type != HX_NODE_INSTRUCTION)
+
+		hx_symbol symbol;
+
+		symbol.name = ast->nodes[i].value.label.name;
+		symbol.name_length = ast->nodes[i].value.label.name_length;
+		symbol.address = ast->nodes[i].value.label.address;
+
+		if (!symbol_table_add(ast->symbol_table, symbol))
+			status = failure;
+	}
+
+	/* Pass 2: resolve symbol operands */
+	for (u64 i = 0; i < ast->node_count; i++) {
+		if (ast->nodes[i].type != HX_NODE_INSTRUCTION)
 			continue;
-	
+
 		hx_instruction *inst = ast->nodes[i].value.instruction;
+
 		for (u8 j = 0; j < instruction_operand_count(inst); j++) {
 			if (!instruction_operand_match_type(inst, j, HX_SYMBOL))
 				continue;
 
 			const char *name;
 			u32 name_length;
-			instruction_operand_get_symbol(inst, j, &name, &name_length);
 
-			hx_symbol *symbol = symbol_table_find(ast->symbol_table, name, name_length);
+			instruction_operand_get_symbol(
+				inst,
+				j,
+				&name,
+				&name_length
+			);
+
+			hx_symbol *symbol = symbol_table_find(
+				ast->symbol_table,
+				name,
+				name_length
+			);
+
 			if (symbol == NULL) {
-				fprintf(stderr, "resolver: failed to resolve symbol: %.*s\n", name_length, name);
+				fprintf(
+					stderr,
+					"resolver: failed to resolve symbol: %.*s\n",
+					name_length,
+					name
+				);
+
 				status = failure;
 				continue;
 			}
 
-			u64 calculated_address = symbol->address - get_instruction_address(inst);
-			instruction_operand_resolve_symbol(inst, j, calculated_address);
+			u64 calculated_address =
+				symbol->address - get_instruction_address(inst);
+
+			instruction_operand_resolve_symbol(
+				inst,
+				j,
+				calculated_address
+			);
 		}
 	}
 
