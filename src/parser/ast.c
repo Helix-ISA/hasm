@@ -122,7 +122,7 @@ b8 ast_resolve_symbols(hx_ast *ast)
 			}
 
 			u64 calculated_address =
-				symbol->address - get_instruction_address(inst);
+				(s64)symbol->address - (s64)get_instruction_address(inst);
 
 			instruction_operand_resolve_symbol(
 				inst,

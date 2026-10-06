@@ -340,7 +340,7 @@ static void parser_parse_line(hx_parser *parser)
 			node.type = HX_NODE_LABEL;
 			node.value.label.name = parser->current.lexme;
 			node.value.label.name_length = parser->current.lexme_length;
-			node.value.label.address = parser->current.location.line << 2;
+			node.value.label.address = parser->instruction_address;
 			ast_add_node(parser->ast, node);
 
 			parser_advance(parser); /* Identifier */

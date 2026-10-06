@@ -1,5 +1,6 @@
 #include "hasm/hasm.h"
 #include "codegen/codegen.h"
+#include "disassembler/disassembler.h"
 #include "lexer/lexer.h"
 #include "lexer/token.h"
 #include "parser/ast.h"
@@ -39,8 +40,6 @@ static const fp_flag flags[] = {
 	{
 		.sname = "d",
 		.lname = "disassemble",
-		.flag_type = FLAG_ARG_REQUIRED,
-		.value_type = "FILE",
 		.description = "Specify file to disassemble",
 	},
 	{
@@ -132,8 +131,7 @@ int hasm(int argc, char **argv)
 		fp_print_usage(&config);
 		goto cleanup;
 	}
-	
-	/* Assemble */
+
 	if (result.positions.count < 1) {
 		error("expected input files");
 		status = 1;
@@ -150,8 +148,7 @@ int hasm(int argc, char **argv)
 		status = 1;
 		goto cleanup;
 	}
-
-	/*----------------------- ASSEMBLER START -----------------------*/
+	
 	in = fopen(result.positions.values[0], "rb");
 	if (in == NULL) {
 		perror(result.positions.values[0]);
@@ -159,6 +156,13 @@ int hasm(int argc, char **argv)
 		goto cleanup;
 	}
 
+	const fp_parsed_flag *disassemble = fp_get_flag(&result, "disassemble");
+	if (disassemble) {
+		disassembler_disassemble(in);
+		return 0;
+	}
+
+	/*----------------------- ASSEMBLER START -----------------------*/
 	if (!extract_source(in, &source, &source_length)) {
 		fprintf(stderr, "failed to extract source\n");
 		status = 1;
