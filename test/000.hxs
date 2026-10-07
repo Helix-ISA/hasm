@@ -2,7 +2,7 @@
 addi h2, h0, 10
 addi h1, h0, 0
 loop:
-	addi h1, h1, 2
+	addi h1, h1, 1
 	beq h1, h2, final
 	jal h0, loop
 

@@ -80,11 +80,22 @@ static u8 lex_register(const char *lex, u32 lex_length)
 	return value;
 }
 
-static u64 lex_number(const char *lex, u32 lex_length)
+static s64 lex_number(const char *lex, u32 lex_length)
 {
-	u64 value = 0;
+	s64 value = 0;
 	u32 i = 0;
-	u32 base = 10;
+	s32 base = 10;
+	b8 negative = false;
+
+	if (lex_length == 0)
+		return 0;
+
+	if (lex[0] == '-') {
+		negative = true;
+		i = 1;
+	} else if (lex[0] == '+') {
+		i = 1;
+	}
 
 	if (lex_length >= 2 &&
 			lex[0] == '0' &&
@@ -95,14 +106,14 @@ static u64 lex_number(const char *lex, u32 lex_length)
 
 	for (; i < lex_length; i++) {
 		char c = lex[i];
-		u32 digit;
+		s32 digit;
 
 		if (c >= '0' && c <= '9')
-			digit = (u32)(c - '0');
+			digit = (s32)(c - '0');
 		else if (c >= 'a' && c <= 'f')
-			digit = (u32)(c - 'a') + 10;
+			digit = (s32)(c - 'a') + 10;
 		else if (c >= 'A' && c <= 'F')
-			digit = (u32)(c - 'A') + 10;
+			digit = (s32)(c - 'A') + 10;
 		else
 			break;
 
@@ -112,7 +123,7 @@ static u64 lex_number(const char *lex, u32 lex_length)
 		value = value * base + digit;
 	}
 
-	return value;
+	return negative ? -value : value;
 }
 
 /**
