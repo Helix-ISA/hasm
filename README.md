@@ -12,16 +12,13 @@ used by the Helix toolchain, processors, and emulators.
 ## Features
 * Helix assembly lexer and parser
 * Symbol resolution
-* Lexer debugging
-* Parser debugging
-* Symbol debugging
 
 ## Building
 
 ### Requirements
 * A C compiler with Clang support
 * GNU Make
-* Nucleus repository or manually install ```flagparser```
+* Nucleus repository or manually install ```flagparser``` and ```isac```.
 
 HASM is currently built using ```clang``` and the provided ```Makefile```.
 
@@ -56,21 +53,10 @@ Usage: ./bin/hasm [OPTIONS] [ARGS...]
 Helix assembler (0.1.0)
 
 Options:
-  -v, --verbose           Enable verbose mode
-  -o, --output FILE       Specifies output file [default: out]
-  -d, --disassemble FILE  Specify file to disassemble
-  --lexer-debug           Enable lexer debug output
-  --parser-debug          Enable parser debug output
-  --symbol-debug          Enable symbol debug output
+  -v, --verbose      Enable verbose mode
+  -o, --output FILE  Specifies output file [default: out]
+  -d, --disassemble  Specify file to disassemble
 ```
-
-## Debugging
-
-HASM includes several debugging modes that are useful when developing the
-assembler and the Helix ISA itself
-
-> [!WARNING]
-> Debugging is currently disabled
 
 ## Model
 
